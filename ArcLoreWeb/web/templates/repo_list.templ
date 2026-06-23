@@ -1,0 +1,70 @@
+package templates
+
+import "strconv"
+
+// RepoListView is the data a single repo row needs. The handler maps each
+// lore Repository into one of these so the template stays free of proto types.
+type RepoListView struct {
+	Name              string
+	Description       string
+	DefaultBranchName string
+	Creator           string
+}
+
+// RepoListPage renders the home page: the repositories list as a Forge table
+// card, or a friendly empty state when no repositories exist.
+templ RepoListPage(repos []RepoListView) {
+	<section class="repos-page">
+		<div class="page-head">
+			<h1>Repositories</h1>
+			<p>Browse the repositories hosted on this Lore server.</p>
+		</div>
+		<div class="toolbar-row">
+			<span class="count">{ strconv.Itoa(len(repos)) }{ pluralRepos(len(repos)) }</span>
+			<span class="spacer"></span>
+		</div>
+		<div class="card" style="--cols: minmax(220px,1.8fr) 180px 2fr;">
+			<div class="lt-head">
+				<span>Repository</span>
+				<span>Default branch</span>
+				<span>Description</span>
+			</div>
+			if len(repos) == 0 {
+				<div class="lt-empty">No repositories yet.</div>
+			} else {
+				for _, repo := range repos {
+					@RepoRow(repo)
+				}
+			}
+		</div>
+	</section>
+}
+
+// RepoRow renders one repository as a Forge grid row: folder icon + name (linked
+// to its home) + creator subtitle, the default branch as a chip, and the
+// description.
+templ RepoRow(repo RepoListView) {
+	<div class="lt-row">
+		<div class="lt-primary">
+			<span class="msi">folder</span>
+			<div style="min-width:0;">
+				<a class="name" href={ templ.SafeURL("/-/" + repo.Name) }>{ repo.Name }</a>
+				if repo.Creator != "" {
+					<div class="sub">{ repo.Creator }</div>
+				}
+			</div>
+		</div>
+		<span>
+			<span class="badge"><span class="msi" style="font-size:14px;vertical-align:-2px;">account_tree</span> { repo.DefaultBranchName }</span>
+		</span>
+		<span class="sub-desc">{ repo.Description }</span>
+	</div>
+}
+
+// pluralRepos returns the " repository"/" repositories" suffix for a count.
+func pluralRepos(n int) string {
+	if n == 1 {
+		return " repository"
+	}
+	return " repositories"
+}

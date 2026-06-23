@@ -1,0 +1,251 @@
+package templates
+
+import "fmt"
+
+// AdminGrantsResource is one registered resource with its current grants for
+// the selected user (or all grants when username is empty).
+type AdminGrantsResource struct {
+	ResourceID  string
+	Name        string
+	Permissions []string // current permissions held by the selected user, may be empty
+}
+
+// AdminGrantsMember is one user row in the left-hand member list.
+type AdminGrantsMember struct {
+	Username    string
+	DisplayName string
+	IsAdmin     bool
+	Selected    bool
+}
+
+// PermMeta describes one permission for the toggle rows.
+type PermMeta struct {
+	ID    string
+	Label string
+	Desc  string
+}
+
+// permCatalog is the set of permissions that actually gate something in
+// lore-server, in display order, with accurate one-line descriptions. The
+// arc-lore-auth vocabulary also accepts "write" and "admin", but they are NOT
+// surfaced here because lore-server does not enforce them as distinct
+// capabilities: its main authz gate is presence-based (carrying urc-<id> at all
+// grants full read+write), so "read" == "Access"; and "admin" is identical to
+// "owner" (both satisfy the same is_owner_or_admin check). Trimming to these
+// four reflects what the model actually does rather than a GitHub-style split.
+var permCatalog = []PermMeta{
+	{ID: "read", Label: "Access", Desc: "Clone, browse, and push. Lore doesn't separate read/write — any grant gives full access."},
+	{ID: "owner", Label: "Owner", Desc: "Force-unlock other users' locks, and delete this repository's access entry."},
+	{ID: "obliterate", Label: "Obliterate", Desc: "Permanently remove content (obliterate)."},
+	{ID: "migrate", Label: "Migrate", Desc: "Manage admin locks (migrate)."},
+}
+
+// hasPerm reports whether perm is present in the resource's current grants.
+func hasPerm(perms []string, perm string) bool {
+	for _, p := range perms {
+		if p == perm {
+			return true
+		}
+	}
+	return false
+}
+
+// grantedCount totals how many of the catalog permissions are granted across all
+// resources for the selected user.
+func grantedCount(resources []AdminGrantsResource) int {
+	n := 0
+	for _, res := range resources {
+		for _, meta := range permCatalog {
+			if hasPerm(res.Permissions, meta.ID) {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+// memberDisplay returns the best display string for a member (DisplayName, else Username).
+func memberDisplay(m AdminGrantsMember) string {
+	if m.DisplayName != "" {
+		return m.DisplayName
+	}
+	return m.Username
+}
+
+// resourceDisplay returns the resource Name, or its id when the name is empty.
+func resourceDisplay(res AdminGrantsResource) string {
+	if res.Name != "" {
+		return res.Name
+	}
+	return res.ResourceID
+}
+
+// selectedMember returns the member matching selectedUser (and whether found).
+func selectedMember(members []AdminGrantsMember) (AdminGrantsMember, bool) {
+	for _, m := range members {
+		if m.Selected {
+			return m, true
+		}
+	}
+	return AdminGrantsMember{}, false
+}
+
+// toggleAction returns the POST target for a permission toggle: granted → the
+// revoke endpoint (turn off), not-granted → the add endpoint (turn on).
+func toggleAction(granted bool) string {
+	if granted {
+		return "/admin/grants/delete"
+	}
+	return "/admin/grants"
+}
+
+// toggleAria builds the accessible label for a permission toggle button.
+func toggleAria(granted bool, label, resource string) string {
+	if granted {
+		return fmt.Sprintf("Revoke %s on %s", label, resource)
+	}
+	return fmt.Sprintf("Grant %s on %s", label, resource)
+}
+
+// countLabel formats the "N of M permissions granted" summary line.
+func countLabel(granted, total int) string {
+	return fmt.Sprintf("%d of %d permissions granted", granted, total)
+}
+
+// AdminGrantsPage renders the grants management screen as a Forge two-pane
+// permission-toggle UI. members is the full user list (left pane); resources is
+// every registered resource with the selected user's grants overlaid (right
+// pane). selectedUser is the active member's username; errMsg is shown when
+// non-empty.
+//
+// Permissions available: read, write, owner, admin, obliterate, migrate.
+templ AdminGrantsPage(members []AdminGrantsMember, resources []AdminGrantsResource, selectedUser string, errMsg string) {
+	<section class="admin">
+		@AdminHeader("grants")
+		if errMsg != "" {
+			<p class="admin-error">{ errMsg }</p>
+		}
+		<div class="perm-grid">
+			<div class="card member-list">
+				<div class="member-search">
+					<span class="msi">search</span>
+					<input type="text" placeholder="Search members…"/>
+				</div>
+				<div class="member-list-scroll">
+					for _, m := range members {
+						<a
+							class={ "member-row", templ.KV("selected", m.Selected) }
+							href={ templ.SafeURL("/admin/grants?user=" + m.Username) }
+						>
+							<span class="member-avatar">{ Initials(memberDisplay(m)) }</span>
+							<span class="member-meta">
+								<span class="member-name">{ memberDisplay(m) }</span>
+								<span class="member-sub">
+									{ m.Username }
+									if m.IsAdmin {
+										<span class="member-tag">admin</span>
+									}
+								</span>
+							</span>
+							if m.Selected {
+								<span class="msi member-check">check_circle</span>
+							}
+						</a>
+					}
+					if len(members) == 0 {
+						<div class="lt-empty">No members found.</div>
+					}
+				</div>
+			</div>
+			<div class="card perm-panel">
+				if selectedUser == "" {
+					<div class="lt-empty">Select a member to manage their permissions.</div>
+				} else {
+					{{ sel, _ := selectedMember(members) }}
+					<div class="perm-panel-head">
+						<span class="perm-panel-avatar">{ Initials(memberDisplay(sel)) }</span>
+						<div class="perm-panel-id">
+							<div class="perm-panel-namerow">
+								<span class="perm-panel-name">{ memberDisplay(sel) }</span>
+								if sel.IsAdmin {
+									<span class="role-chip admin">Admin</span>
+								}
+							</div>
+							<div class="perm-panel-count">
+								{ countLabel(grantedCount(resources), len(resources)*len(permCatalog)) }
+							</div>
+							if sel.IsAdmin {
+								<div class="perm-panel-note">Admins have full access regardless of grants.</div>
+							}
+						</div>
+					</div>
+					if len(resources) == 0 {
+						<div class="lt-empty">No resources registered yet.</div>
+					}
+					for _, res := range resources {
+						<div class="perm-resource">
+							<div class="perm-resource-head">
+								<span>{ resourceDisplay(res) }</span>
+								<span class="perm-resource-id">{ res.ResourceID }</span>
+							</div>
+							for _, meta := range permCatalog {
+								{{ granted := hasPerm(res.Permissions, meta.ID) }}
+								<div class="perm-item">
+									<div class="perm-item-meta">
+										<div class="perm-item-label">{ meta.Label }</div>
+										<div class="perm-item-desc">{ meta.Desc }</div>
+									</div>
+									<form
+										method="post"
+										action={ toggleAction(granted) }
+										class="perm-toggle-form"
+									>
+										<input type="hidden" name="username" value={ selectedUser }/>
+										<input type="hidden" name="resource_id" value={ res.ResourceID }/>
+										<input type="hidden" name="permission" value={ meta.ID }/>
+										<button
+											type="submit"
+											class={ "perm-toggle", templ.KV("on", granted) }
+											aria-label={ toggleAria(granted, meta.Label, resourceDisplay(res)) }
+										>
+											<span class="perm-knob"></span>
+										</button>
+									</form>
+								</div>
+							}
+						</div>
+					}
+				}
+			</div>
+		</div>
+		<h2>Registered resources</h2>
+		<table class="admin-table">
+			<thead>
+				<tr>
+					<th>Resource ID</th>
+					<th>Name</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, res := range resources {
+					<tr>
+						<td><code>{ res.ResourceID }</code></td>
+						<td>{ res.Name }</td>
+						<td>
+							<form method="post" action="/admin/resources/remove" onsubmit="return confirm('Remove this access entry? This removes the auth row only. If the repository still exists on the server it becomes an UNLISTED ORPHAN — to delete a live repo use Delete on the Repositories tab.')" style="display:inline">
+								<input type="hidden" name="resource_id" value={ res.ResourceID }/>
+								<button type="submit" class="admin-delete">Remove</button>
+							</form>
+						</td>
+					</tr>
+				}
+				if len(resources) == 0 {
+					<tr>
+						<td colspan="3" class="admin-empty">No resources registered yet.</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</section>
+}

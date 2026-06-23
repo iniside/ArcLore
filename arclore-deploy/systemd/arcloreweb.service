@@ -1,0 +1,57 @@
+# arcloreweb.service — systemd unit for the ArcLoreWeb frontend
+#
+# This unit is INSTALLED (and its Environment= lines populated from operator
+# prompts) by arclore-deploy/install.sh. It is committed here so the shape is
+# reviewable, but install.sh writes the live copy with the real LORE_HOST /
+# SESSION_SECRET values substituted in — the placeholders below are NOT usable
+# as-is (SESSION_SECRET is empty and LORE_GRPC_ADDR points at a placeholder).
+#
+# PATHS
+#   binary : /opt/arcloreweb/arcloreweb
+#   wd     : /opt/arcloreweb
+#
+# ENVIRONMENT (set by install.sh; documented in arc-lore-auth/INSTALL.md +
+#   ArcLoreWeb/README.md):
+#   LISTEN_ADDR        ArcLoreWeb HTTP bind (default :41380)
+#   LORE_GRPC_ADDR     lore-server gRPC          HOST:41337
+#   LORE_HTTP_ADDR     lore-server HTTP blob     http://HOST:41339
+#   MGMT_API_ADDR      arc-lore-auth HTTP        http://HOST:8080
+#   SESSION_SECRET     cookie-session signing key (REQUIRED, random)
+#   LORE_AUTH_DISABLED optional; default false
+#
+# LOGS
+#   journalctl -u arcloreweb -f
+#   journalctl -u arcloreweb -n 50
+
+[Unit]
+Description=ArcLoreWeb — web frontend for self-hosted Lore (login + browse)
+Documentation=file:///opt/arclore-deploy/README.md
+After=network-online.target arc-lore-auth.service
+Wants=network-online.target
+# ArcLoreWeb logs users in via arc-lore-auth's /api/login, so order it after.
+After=arc-lore-auth.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/arcloreweb
+ExecStart=/opt/arcloreweb/arcloreweb
+Restart=on-failure
+RestartSec=3
+
+# Environment is rewritten by install.sh with real values.
+Environment=LISTEN_ADDR=:41380
+Environment=LORE_GRPC_ADDR=127.0.0.1:41337
+Environment=LORE_HTTP_ADDR=http://127.0.0.1:41339
+Environment=MGMT_API_ADDR=http://127.0.0.1:8080
+Environment=SESSION_SECRET=
+Environment=LORE_AUTH_DISABLED=false
+
+# Hardening — ArcLoreWeb is stateless (no on-disk secrets of its own), so it can
+# take the stricter profile that arc-lore-auth cannot (no /root key to protect).
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

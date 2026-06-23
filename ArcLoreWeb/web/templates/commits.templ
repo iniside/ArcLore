@@ -1,0 +1,101 @@
+package templates
+
+// CommitListView is the data for the commit-history page. The handler resolves
+// each row's metadata (message/author/time) and groups rows by date so the
+// template never touches proto types.
+type CommitListView struct {
+	Owner      string
+	RepoName   string
+	BranchName string
+	Groups     []CommitDateGroup
+	PrevURL    string // page toward newer commits (empty = none)
+	NextURL    string // page toward older commits (empty = none)
+	Empty      bool
+}
+
+// CommitDateGroup is a set of commit rows that share a calendar date.
+type CommitDateGroup struct {
+	Date string // human date header, e.g. "2026-06-22"
+	Rows []CommitRowView
+}
+
+// CommitRowView is one commit in the history list.
+type CommitRowView struct {
+	ShortSig string // first 12 hex chars of the signature
+	HexSig   string // full hex signature (for the commit link)
+	Subject  string // first line of the commit message
+	Author   string
+	RelTime  string // relative time, e.g. "3 hours ago"
+	Date     string // YYYY-MM-DD calendar date used for grouping
+	URL      string // /{owner}/{repo}/commit/{hexsig}
+}
+
+// CommitListPage renders the commit history in the Forge layout: the shared repo
+// sub-header (Code/Commits tabs), then either an empty-state card or a single
+// card listing the commits grouped by date, with a newer/older pager.
+templ CommitListPage(view CommitListView) {
+	<section class="commits">
+		@RepoSubHeader(view.RepoName, view.BranchName, "commits")
+		if view.Empty {
+			<div class="card">
+				<div class="lt-empty">No commits yet.</div>
+			</div>
+		} else {
+			<div class="commit-list">
+				for _, group := range view.Groups {
+					@CommitDateSection(group)
+				}
+			</div>
+			@CommitPager(view)
+		}
+	</section>
+}
+
+// CommitDateSection renders one date group in the Forge layout: a headline naming
+// the date OUTSIDE the card, then a card holding one row per commit.
+templ CommitDateSection(group CommitDateGroup) {
+	<div class="commit-grouphead">
+		<span class="msi">calendar_today</span>Commits on { group.Date }
+	</div>
+	<div class="card">
+		for _, row := range group.Rows {
+			@CommitRow(row)
+		}
+	</div>
+}
+
+// CommitRow renders a single commit entry: a round avatar, the subject linked to
+// the commit view with a muted "{author} committed {time}" sub line, a mono short
+// sig chip, and a decorative copy icon.
+templ CommitRow(row CommitRowView) {
+	<div class="commit-listrow">
+		<span class="commit-listrow-avatar">{ Initials(row.Author) }</span>
+		<div class="commit-listrow-main">
+			<a class="commit-listrow-subject" href={ templ.SafeURL(row.URL) }>{ row.Subject }</a>
+			<div class="commit-listrow-sub">
+				<span class="commit-listrow-author">{ row.Author }</span> committed { row.RelTime }
+			</div>
+		</div>
+		<a class="commit-listrow-hash" href={ templ.SafeURL(row.URL) }>{ row.ShortSig }</a>
+		<span class="msi commit-listrow-copy">content_copy</span>
+	</div>
+}
+
+// CommitPager renders the newer/older navigation. PrevURL pages toward newer
+// commits, NextURL toward older ones; an absent direction renders a disabled
+// pill so the pager keeps its shape.
+templ CommitPager(view CommitListView) {
+	<nav class="code-toolbar commit-pager">
+		if view.PrevURL != "" {
+			<a class="pillbtn" href={ templ.SafeURL(view.PrevURL) }><span class="msi">chevron_left</span>Newer</a>
+		} else {
+			<span class="pillbtn disabled"><span class="msi">chevron_left</span>Newer</span>
+		}
+		<span class="spacer"></span>
+		if view.NextURL != "" {
+			<a class="pillbtn" href={ templ.SafeURL(view.NextURL) }>Older<span class="msi">chevron_right</span></a>
+		} else {
+			<span class="pillbtn disabled">Older<span class="msi">chevron_right</span></span>
+		}
+	</nav>
+}

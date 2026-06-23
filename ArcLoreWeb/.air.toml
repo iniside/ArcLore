@@ -1,0 +1,30 @@
+root = "."
+tmp_dir = "tmp"
+
+[build]
+  # Run templ generate before the Go build so template changes are picked up.
+  pre_cmd = ["templ generate"]
+  cmd = "go build -o ./tmp/arcloreweb.exe ./cmd/arcloreweb"
+  bin = "./tmp/arcloreweb.exe"
+  delay = 500
+  include_ext = ["go", "templ", "css", "html"]
+  exclude_dir = ["tmp", "gen", "api"]
+  exclude_file = []
+  exclude_regex = ["_templ\\.go$"]
+  rerun = false
+  rerun_delay = 500
+  kill_delay = "0s"
+  send_interrupt = true
+
+[log]
+  main_only = false
+  time = false
+
+[color]
+  main = "magenta"
+  watcher = "cyan"
+  build = "yellow"
+  runner = "green"
+
+[misc]
+  clean_on_exit = false

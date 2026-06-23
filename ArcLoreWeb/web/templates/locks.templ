@@ -1,0 +1,48 @@
+package templates
+
+// LocksView is the data for the read-only locks page: the locks held on a single
+// branch. The handler resolves each lock into a flat row (path, owner, formatted
+// time) so the template never sees proto/timestamp types.
+type LocksView struct {
+	Owner      string // cosmetic url segment (repo names are globally unique)
+	RepoName   string
+	BranchName string
+	Rows       []LockRowView
+}
+
+// LockRowView is one lock in the locks table. Path is the repo-relative file
+// path (resource.description); Owner is the raw lock owner user id; LockedAt is
+// the already-formatted lock timestamp.
+type LockRowView struct {
+	Path     string
+	Owner    string
+	LockedAt string
+}
+
+// LocksPage renders the per-branch locks list in the Forge layout: the shared
+// repo sub-header (Code/Commits/Locks tabs) then a single card with a File /
+// Locked by / Locked at grid, or an empty state. Read-only — releasing a lock
+// needs write auth + a replicated command (TODO).
+templ LocksPage(view LocksView) {
+	<section class="locks">
+		@RepoSubHeader(view.RepoName, view.BranchName, "locks")
+		<div class="card" style="--cols: 1fr 200px 200px;">
+			<div class="lt-head">
+				<span>File</span>
+				<span>Locked by</span>
+				<span>Locked at</span>
+			</div>
+			if len(view.Rows) == 0 {
+				<div class="lt-empty">No locks on this branch.</div>
+			} else {
+				for _, row := range view.Rows {
+					<div class="lt-row">
+						<code>{ row.Path }</code>
+						<span>{ row.Owner }</span>
+						<span>{ row.LockedAt }</span>
+					</div>
+				}
+			}
+		</div>
+	</section>
+}

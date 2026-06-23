@@ -1,0 +1,200 @@
+package templates
+
+import "strconv"
+
+// TreeView is the data for a directory listing page (subdirectory of a branch).
+type TreeView struct {
+	Owner      string
+	RepoName   string
+	BranchName string
+	DirPath    string       // repo-relative directory path; "" = branch root
+	Rows       []FileRowView
+}
+
+// FileView is the data for a single file page.
+type FileView struct {
+	Owner      string
+	RepoName   string
+	BranchName string
+	FilePath   string // repo-relative file path
+	Filename   string // leaf name
+	RawURL     string // /{owner}/{repo}/raw/branch/{branch}/{path}
+	Locked     bool
+	LockOwner  string
+	LexerName  string         // e.g. "Go", "C++", "Plain Text"
+	Body       templ.Component // nil when TooLarge is true
+	TooLarge   bool            // binary or over MaxHighlightBytes
+}
+
+// TreePage renders a directory listing for an arbitrary branch + subpath in the
+// Forge "Code" look: shared subheader, a muted path breadcrumb, then a card whose
+// rows reuse repo-home's Forge file-row markup.
+templ TreePage(tree TreeView) {
+	<section class="tree">
+		@RepoSubHeader(tree.RepoName, tree.BranchName, "code")
+		@TreeBreadcrumb(tree)
+		<div class="card">
+			<div class="ftable-headrow">
+				<span class="msi" style="font-size:18px;color:var(--text-secondary);">folder_open</span>
+				<strong>{ treeDirLabel(tree.DirPath) }</strong>
+				<span class="frow-spacer"></span>
+				<span>{ strconv.Itoa(len(tree.Rows)) } items</span>
+			</div>
+			if len(tree.Rows) == 0 {
+				<div class="lt-empty">Empty directory</div>
+			} else {
+				for _, row := range tree.Rows {
+					@TreeFileRow(tree, row)
+				}
+			}
+		</div>
+	</section>
+}
+
+// TreeBreadcrumb renders the muted path breadcrumb for the directory view.
+templ TreeBreadcrumb(tree TreeView) {
+	<nav class="path-crumb">
+		<a href={ templ.SafeURL("/-/" + tree.RepoName) }>{ tree.RepoName }</a>
+		if tree.DirPath != "" {
+			for _, seg := range breadcrumbSegments(tree.Owner, tree.RepoName, tree.BranchName, tree.DirPath) {
+				<span class="sep">/</span>
+				<a href={ templ.SafeURL(seg.URL) }>{ seg.Name }</a>
+			}
+		}
+	</nav>
+}
+
+// TreeFileRow renders a single file/directory entry in the tree listing using the
+// Forge .frow markup (folder/description icons, name link, lock badge).
+templ TreeFileRow(tree TreeView, row FileRowView) {
+	<div class="frow">
+		if row.IsDir {
+			<span class="msi icon-dir">folder</span>
+		} else {
+			<span class="msi icon-file">description</span>
+		}
+		<a class="frow-name" href={ treeSrcURL(tree, row) }>{ row.Name }</a>
+		<span class="frow-spacer"></span>
+		if row.Locked {
+			<span class="frow-lock" title={ lockTooltip(row.LockOwner) }><span class="msi">lock</span>{ lockLabel(row.LockOwner) }</span>
+		}
+	</div>
+}
+
+// FilePage renders a single file: shared subheader, a muted path breadcrumb, then
+// one Forge card whose head is the file toolbar (path + Raw + lexer + lock) and
+// whose body is the highlighted source (or the too-large notice).
+templ FilePage(file FileView) {
+	<section class="file-view">
+		@RepoSubHeader(file.RepoName, file.BranchName, "code")
+		@FileBreadcrumb(file)
+		<div class="card">
+			@FileToolbar(file)
+			if file.TooLarge {
+				@FileTooLarge(file)
+			} else {
+				<div class="file-body">
+					@file.Body
+				</div>
+			}
+		</div>
+	</section>
+}
+
+// FileBreadcrumb renders the muted repo → dir → filename path breadcrumb.
+templ FileBreadcrumb(file FileView) {
+	<nav class="path-crumb">
+		<a href={ templ.SafeURL("/-/" + file.RepoName) }>{ file.RepoName }</a>
+		for _, seg := range breadcrumbSegments(file.Owner, file.RepoName, file.BranchName, file.FilePath) {
+			<span class="sep">/</span>
+			<a href={ templ.SafeURL(seg.URL) }>{ seg.Name }</a>
+		}
+	</nav>
+}
+
+// FileToolbar is the Forge card-head bar above the file body: the mono file path,
+// a Raw pill, the lexer badge (guarded — empty lexer is simply hidden, there is no
+// "Plain Text" fallback), and a lock chip when the file is locked.
+templ FileToolbar(file FileView) {
+	<div class="card-head file-toolbar">
+		<span class="file-toolbar-path">{ file.FilePath }</span>
+		<span class="frow-spacer"></span>
+		if file.Locked {
+			<span class="frow-lock" title={ lockTooltip(file.LockOwner) }><span class="msi">lock</span>{ lockLabel(file.LockOwner) }</span>
+		}
+		if file.LexerName != "" {
+			<span class="badge">{ file.LexerName }</span>
+		}
+		<a class="pillbtn" href={ templ.SafeURL(file.RawURL) }><span class="msi">download</span>Raw</a>
+	</div>
+}
+
+// FileTooLarge renders the "binary / too large" notice shown inside the card body
+// instead of the highlight. The toolbar's Raw pill covers the download, so no
+// duplicate link is rendered here.
+templ FileTooLarge(file FileView) {
+	<div class="file-too-large">
+		<p>This file is binary or too large to display inline.</p>
+	</div>
+}
+
+// BreadcrumbSegment is one element in a path breadcrumb.
+type BreadcrumbSegment struct {
+	Name string
+	URL  string
+}
+
+// breadcrumbSegments splits repoRelativePath into BreadcrumbSegments where
+// each URL links to that path's src view.
+func breadcrumbSegments(owner, repoName, branchName, repoRelativePath string) []BreadcrumbSegment {
+	parts := splitPath(repoRelativePath)
+	segs := make([]BreadcrumbSegment, 0, len(parts))
+	accumulated := ""
+	for i, part := range parts {
+		if i > 0 {
+			accumulated += "/"
+		}
+		accumulated += part
+		segs = append(segs, BreadcrumbSegment{
+			Name: part,
+			URL:  "/" + owner + "/" + repoName + "/src/branch/" + branchName + "/" + accumulated,
+		})
+	}
+	return segs
+}
+
+// splitPath splits a repo-relative path on "/" without the stdlib import that
+// would conflict with chi's URLParam at template level.
+func splitPath(path string) []string {
+	if path == "" {
+		return nil
+	}
+	parts := make([]string, 0, 4)
+	start := 0
+	for i := 0; i < len(path); i++ {
+		if path[i] == '/' {
+			if i > start {
+				parts = append(parts, path[start:i])
+			}
+			start = i + 1
+		}
+	}
+	if start < len(path) {
+		parts = append(parts, path[start:])
+	}
+	return parts
+}
+
+// treeSrcURL builds the link for a row inside the tree view.
+func treeSrcURL(tree TreeView, row FileRowView) templ.SafeURL {
+	return templ.SafeURL("/" + tree.Owner + "/" + tree.RepoName + "/src/branch/" + tree.BranchName + "/" + row.Path)
+}
+
+// treeDirLabel is the directory name shown in the tree card header. The branch
+// root ("" dir) is labelled "/" so the header is never blank.
+func treeDirLabel(dirPath string) string {
+	if dirPath == "" {
+		return "/"
+	}
+	return dirPath
+}

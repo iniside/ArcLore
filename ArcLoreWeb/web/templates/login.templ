@@ -1,0 +1,69 @@
+package templates
+
+// LoginPage is the native sign-in form. It POSTs username/password to
+// /auth/login, which authenticates against arc-lore-auth's /api/login. errMsg
+// is rendered above the form when non-empty (e.g. a failed credential check).
+// When registrationOpen is true a "Create one" link to /auth/register is shown
+// below the form.
+templ LoginPage(errMsg string, registrationOpen bool) {
+	<section class="auth-wrap">
+		<div class="auth-card">
+			<div class="auth-brand">
+				<span class="brand-logo"><span class="msi">deployed_code</span></span>
+				<span class="brand-name">ArcLore</span>
+			</div>
+			<h1 class="auth-title">Sign in</h1>
+			if errMsg != "" {
+				<p class="auth-error">{ errMsg }</p>
+			}
+			<form class="auth-form" method="post" action="/auth/login">
+				<label>
+					Username
+					<input type="text" name="username" autocomplete="username" autofocus required/>
+				</label>
+				<label>
+					Password
+					<input type="password" name="password" autocomplete="current-password" required/>
+				</label>
+				<button class="accentbtn auth-submit" type="submit">Sign in</button>
+			</form>
+			if registrationOpen {
+				<p class="auth-alt">Need an account? <a href="/auth/register">Create one</a></p>
+			}
+		</div>
+	</section>
+}
+
+// SetupPage is the first-run create-first-admin form. It POSTs to /setup, which
+// calls arc-lore-auth's /api/setup and auto-logs in the new admin. errMsg is
+// rendered above the form when non-empty.
+templ SetupPage(errMsg string) {
+	<section class="auth-wrap">
+		<div class="auth-card">
+			<div class="auth-brand">
+				<span class="brand-logo"><span class="msi">deployed_code</span></span>
+				<span class="brand-name">ArcLore</span>
+			</div>
+			<h1 class="auth-title">Set up ArcLore</h1>
+			<p class="auth-sub">No users exist yet. Create the first administrator account.</p>
+			if errMsg != "" {
+				<p class="auth-error">{ errMsg }</p>
+			}
+			<form class="auth-form" method="post" action="/setup">
+				<label>
+					Username
+					<input type="text" name="username" autocomplete="username" autofocus required/>
+				</label>
+				<label>
+					Display name
+					<input type="text" name="display_name" autocomplete="name"/>
+				</label>
+				<label>
+					Password
+					<input type="password" name="password" autocomplete="new-password" required/>
+				</label>
+				<button class="accentbtn auth-submit" type="submit">Create admin &amp; sign in</button>
+			</form>
+		</div>
+	</section>
+}

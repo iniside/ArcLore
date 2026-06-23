@@ -1,0 +1,42 @@
+# Built binaries (native + cross-compiled, e.g. arc-lore-auth-linux-amd64)
+arc-lore-auth
+arc-lore-auth.exe
+arc-lore-auth-*
+
+# Key and secret files — NEVER commit these
+*.key
+*.pem
+*.crt
+*.secret
+arc-lore-auth.key
+arc-lore-auth.secret
+
+# TLS cert/key for the gRPC listener (self-signed, generated on first run)
+arc-lore-auth-tls.*
+
+# Token output files
+*.token
+token.txt
+
+# User store — contains argon2id password hashes; NEVER commit
+arc-lore-users.json
+*-users.json
+
+# SQLite store (+ WAL/SHM sidecars) — contains argon2id password hashes; NEVER commit
+arc-lore.db
+*.db
+*.db-wal
+*.db-shm
+
+# Go build cache (if any ends up here)
+*.test
+
+# Allow the systemd unit in deploy/
+!*.service
+
+# The repo-root .gitignore ignores all files by default (allowlist style) and
+# does not un-ignore *.sql, so the embedded goose migrations would be dropped
+# from git. Re-include them explicitly (the binary //go:embed's these — they MUST
+# be tracked or a fresh checkout cannot build).
+!migrations/
+!migrations/*.sql

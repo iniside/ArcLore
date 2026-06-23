@@ -1,0 +1,2175 @@
+/* ==========================================================================
+   ArcLoreWeb — "Forge" design system
+   Google-Material surfaces · dark default · amber accent · Roboto + Material
+   Symbols. Ported from design-reference/Forge. Token names kept stable so
+   every component rule re-skins from :root.
+   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..24,400,0,0&display=swap');
+
+/* --------------------------------------------------------------------------
+   1. Custom properties — Forge dark palette + spacing + elevation
+   -------------------------------------------------------------------------- */
+:root {
+  color-scheme: dark;
+
+  /* Surface hierarchy (Forge dark) */
+  --surface-0:      #131314;   /* page background (Forge bg) */
+  --surface-1:      #1e1f20;   /* cards, panels (Forge surface) */
+  --surface-2:      #28292a;   /* card headers, hover (Forge surfaceAlt) */
+  --surface-3:      #3c4043;   /* borders (Forge border) */
+  --divider:        #2c2d2f;   /* hairline row dividers */
+
+  /* Text */
+  --text-primary:   #e3e3e3;
+  --text-secondary: #9aa0a6;
+  --text-muted:     #80868b;
+  --text-link:      #fdb95e;   /* accent text (amber, dark) */
+  --text-link-hover:#ffce8a;
+
+  /* Accent — Amber (Forge default) */
+  --accent:         #e8710a;   /* solid (buttons, active fills) */
+  --accent-hover:   #f0850f;
+  --accent-text:    #fdb95e;   /* on-dark accent text/links/active */
+  --accent-subtle:  rgba(253,185,94,0.16);
+
+  /* Semantic (Forge dark) */
+  --success:        #81c995;
+  --success-subtle: rgba(129,201,149,0.14);   /* diff-add row background */
+  --success-muted:  rgba(129,201,149,0.28);   /* diff-add gutter tint */
+  --danger:         #f28b82;
+  --danger-subtle:  rgba(242,139,130,0.14);   /* diff-del row background */
+  --danger-muted:   rgba(242,139,130,0.28);   /* diff-del gutter tint */
+  --warning:        #fdd663;
+  --purple:         #d7aefb;
+
+  /* Chips / inputs / code */
+  --chip-bg:        #303134;
+  --chip-text:      #c4c7c5;
+  --input-bg:       #28292a;
+  --code-bg:        #0b0b0c;
+
+  /* Diff neutrals (dark) */
+  --diff-hunk-bg:   #28292a;
+  --diff-hunk-text: #9aa0a6;
+  --diff-gutter-bg: #1a1b1c;
+  --diff-gutter-fg: #80868b;
+
+  /* Nav / appbar — Forge appbar sits on the surface color, not a dark bar */
+  --nav-bg:         #1e1f20;
+  --nav-fg:         #e3e3e3;
+  --nav-fg-muted:   #9aa0a6;
+  --nav-brand:      #e3e3e3;
+  --nav-height:     56px;
+
+  /* Elevation — Forge subtle material shadow */
+  --shadow-1:  0 1px 2px rgba(0,0,0,0.4), 0 1px 3px 1px rgba(0,0,0,0.3);
+  --shadow-2:  0 2px 6px rgba(0,0,0,0.45), 0 1px 3px rgba(0,0,0,0.35);
+  --shadow-3:  0 8px 24px rgba(0,0,0,0.5);
+
+  /* Radii */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-pill: 24px;
+
+  /* Layout */
+  --content-max: 1280px;
+  --content-pad: 24px;
+
+  /* Typography */
+  --font-sans: Roboto, Arial, "Segoe UI", Helvetica, sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, SFMono-Regular, Consolas, Menlo, monospace;
+  --font-size-base: 14px;
+  --line-height:    1.6;
+}
+
+/* Material Symbols icon helper — use <span class="msi">icon_name</span>. */
+.msi {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  white-space: nowrap;
+  display: inline-block;
+  vertical-align: middle;
+  -webkit-font-feature-settings: 'liga';
+  font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --------------------------------------------------------------------------
+   2. Reset + box-sizing
+   -------------------------------------------------------------------------- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  font-size: var(--font-size-base);
+  -webkit-text-size-adjust: 100%;
+  tab-size: 4;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height);
+  color: var(--text-primary);
+  background: var(--surface-0);
+  min-height: 100vh;
+}
+
+a {
+  color: var(--text-link);
+  text-decoration: none;
+}
+a:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+/* --------------------------------------------------------------------------
+   3. Sticky top nav — Forge appbar
+   -------------------------------------------------------------------------- */
+.topnav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: var(--nav-height);
+  padding: 10px var(--content-pad);
+  background: var(--nav-bg);
+  border-bottom: 1px solid var(--surface-3);
+  box-shadow: var(--shadow-1);
+}
+
+/* Brand: rounded-square accent logo + wordmark. */
+.topnav .brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--nav-brand);
+  text-decoration: none;
+}
+.topnav .brand:hover { text-decoration: none; opacity: 0.92; }
+.topnav .brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.topnav .brand-logo .msi { font-size: 20px; }
+.topnav .brand-name {
+  font-size: 18px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.topnav .nav-spacer { flex: 1; }
+
+/* Pill nav group (Repository / Admin). */
+.topnav .nav-links {
+  display: flex;
+  gap: 4px;
+  background: var(--input-bg);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+}
+.topnav .nav-links a {
+  border: none;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 7px 18px;
+  border-radius: 20px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.topnav .nav-links a:hover { color: var(--text-primary); text-decoration: none; }
+.topnav .nav-links a.active {
+  background: var(--surface-3);
+  color: var(--accent-text);
+}
+
+/* Signed-in user: name + avatar + logout. */
+.topnav .nav-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.topnav .nav-user-name {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+.topnav .nav-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+.topnav .nav-logout {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--surface-3);
+  background: var(--surface-1);
+}
+.topnav .nav-logout:hover { color: var(--text-primary); text-decoration: none; background: var(--surface-2); }
+.topnav a.nav-avatar { text-decoration: none; }
+.topnav a.nav-avatar:hover { opacity: 0.9; text-decoration: none; }
+
+/* Search bar (Forge appbar). */
+.topnav .nav-search {
+  flex: 1;
+  max-width: 440px;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.topnav .nav-search .msi {
+  position: absolute;
+  left: 14px;
+  font-size: 20px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+.topnav .nav-search input {
+  width: 100%;
+  border: 1px solid var(--surface-3);
+  background: var(--input-bg);
+  border-radius: var(--radius-pill);
+  padding: 9px 16px 9px 44px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  outline: none;
+}
+.topnav .nav-search input:focus { border-color: var(--accent-text); }
+
+/* Notifications bell. */
+.topnav .nav-bell {
+  font-size: 22px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+/* --------------------------------------------------------------------------
+   4. Page shell / content wrapper
+   -------------------------------------------------------------------------- */
+#main-content {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 28px var(--content-pad);
+}
+
+/* --------------------------------------------------------------------------
+   5. Repo list (home page)
+   -------------------------------------------------------------------------- */
+.repo-list > h1 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--text-primary);
+}
+
+.repo-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.repo-card {
+  background: var(--surface-0);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  box-shadow: var(--shadow-1);
+  transition: box-shadow 0.15s ease, transform 0.15s ease, border-color 0.15s ease;
+  cursor: default;
+}
+.repo-card:hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
+  border-color: #b0b7c0;
+}
+
+.repo-card .repo-name {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 6px;
+}
+.repo-card .repo-name:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
+}
+
+.repo-card .repo-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+  line-height: 1.5;
+}
+
+.repo-card .repo-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.repo-card .repo-branch::before {
+  content: '⎇ ';
+  opacity: 0.7;
+}
+
+/* --------------------------------------------------------------------------
+   6. Repo header
+   -------------------------------------------------------------------------- */
+.repo-header {
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--surface-3);
+}
+
+.repo-header .repo-title {
+  font-size: 1.375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.repo-header .repo-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.repo-header .repo-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.branch-dropdown,
+.clone-stub {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-1);
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  box-shadow: var(--shadow-1);
+  transition: background 0.12s, box-shadow 0.12s;
+}
+.branch-dropdown:hover,
+.clone-stub:hover {
+  background: var(--surface-2);
+  box-shadow: var(--shadow-2);
+}
+
+/* --------------------------------------------------------------------------
+   9. File view (file page)
+   -------------------------------------------------------------------------- */
+.file-view {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Pill buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-sm);
+  background: var(--surface-0);
+  font-size: 0.8125rem;
+  font-family: var(--font-sans);
+  color: var(--text-primary);
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: var(--shadow-1);
+  transition: background 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.btn:hover {
+  background: var(--surface-2);
+  border-color: #8b949e;
+  box-shadow: var(--shadow-2);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+.btn.disabled,
+.btn[disabled] {
+  color: var(--text-muted);
+  background: var(--surface-1);
+  cursor: default;
+  box-shadow: none;
+}
+
+/* File body — chroma table sits inside. Frame props (border/radius/shadow) live
+   on the enclosing .card now; this only owns the background + clipping so the
+   chroma table can't escape the card's rounded corners. */
+.file-body {
+  overflow: hidden;
+  background: var(--surface-0);
+  /* let chroma's table take full width */
+}
+
+/* Forge file toolbar (the .card-head above the body) + muted path breadcrumb */
+.file-toolbar-path {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+.path-crumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+.path-crumb a { color: var(--accent-text); text-decoration: none; font-weight: 500; }
+.path-crumb a:hover { text-decoration: underline; }
+.path-crumb .sep { padding: 0 4px; color: var(--text-muted); user-select: none; }
+
+/* Chroma line-numbers table */
+.file-body .chroma {
+  margin: 0;
+  overflow-x: auto;
+}
+
+/* Override chroma's default pre padding for a tighter feel */
+.file-body pre {
+  margin: 0;
+  padding: 16px 0;
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Gutter (line numbers) column produced by chroma in table mode */
+.file-body .lntable {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface-0);
+}
+
+.file-body .lntd:first-child {
+  width: 1%;
+  white-space: nowrap;
+  padding-right: 0;
+  border-right: 1px solid var(--surface-2);
+  background: var(--surface-1);
+  color: var(--text-muted);
+  user-select: none;
+}
+.file-body .lntd:first-child pre {
+  padding: 16px 12px;
+  text-align: right;
+}
+
+.file-body .lntd:last-child pre {
+  padding: 16px 20px;
+}
+
+/* Too-large / binary notice */
+.file-too-large {
+  padding: 32px 24px;
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+  text-align: center;
+  color: var(--text-secondary);
+  box-shadow: var(--shadow-1);
+}
+.file-too-large p {
+  margin-bottom: 16px;
+}
+
+/* --------------------------------------------------------------------------
+   10. README / markdown-body
+   -------------------------------------------------------------------------- */
+.readme {
+  margin-top: 24px;
+  padding: 28px 32px;
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  background: var(--surface-0);
+  box-shadow: var(--shadow-1);
+}
+
+/* Section label above the panel */
+.readme::before {
+  content: 'README';
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--surface-3);
+}
+
+.markdown-body {
+  font-size: 0.9375rem;
+  line-height: 1.7;
+  color: var(--text-primary);
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+  font-weight: 600;
+  line-height: 1.25;
+  margin-top: 24px;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+.markdown-body h1 { font-size: 1.625rem; padding-bottom: 10px; border-bottom: 1px solid var(--surface-3); }
+.markdown-body h2 { font-size: 1.25rem;  padding-bottom: 8px;  border-bottom: 1px solid var(--surface-3); }
+.markdown-body h3 { font-size: 1.0625rem; }
+.markdown-body h4 { font-size: 0.9375rem; }
+
+.markdown-body p {
+  margin-bottom: 14px;
+}
+
+.markdown-body ul,
+.markdown-body ol {
+  list-style: revert;
+  padding-left: 2em;
+  margin-bottom: 14px;
+}
+
+.markdown-body li + li {
+  margin-top: 4px;
+}
+
+.markdown-body a {
+  color: var(--accent);
+}
+.markdown-body a:hover {
+  color: var(--accent-hover);
+}
+
+/* Inline code */
+.markdown-body code {
+  padding: 0.2em 0.4em;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: 4px;
+  font-size: 0.875em;
+  color: var(--text-primary);
+}
+
+/* Code blocks */
+.markdown-body pre {
+  margin-bottom: 16px;
+  padding: 16px 20px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+.markdown-body pre code {
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 0.875rem;
+  color: inherit;
+}
+
+/* Blockquotes */
+.markdown-body blockquote {
+  margin: 0 0 14px;
+  padding: 8px 16px;
+  border-left: 4px solid var(--surface-3);
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* Tables */
+.markdown-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin-bottom: 16px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 1px var(--surface-3);
+}
+.markdown-body th,
+.markdown-body td {
+  padding: 8px 14px;
+  border: 1px solid var(--surface-3);
+  font-size: 0.875rem;
+}
+.markdown-body th {
+  background: var(--surface-1);
+  font-weight: 600;
+  text-align: left;
+}
+.markdown-body tr:nth-child(even) {
+  background: var(--surface-1);
+}
+
+/* Horizontal rule */
+.markdown-body hr {
+  border: none;
+  border-top: 1px solid var(--surface-3);
+  margin: 24px 0;
+}
+
+/* --------------------------------------------------------------------------
+   11. Commit history
+   -------------------------------------------------------------------------- */
+.commits {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.commit-subject {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+  line-height: 1.4;
+}
+.commit-subject:hover {
+  color: var(--accent);
+}
+
+/* --------------------------------------------------------------------------
+   12. Single commit page
+   -------------------------------------------------------------------------- */
+
+/* "← All commits" back link above the header card. */
+.commit-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--accent-text);
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+.commit-back:hover { color: var(--accent-text); text-decoration: underline; }
+.commit-back .msi { font-size: 18px; }
+
+/* Header card: a top section (message + meta) and a surfaceAlt stats bar. */
+.commit-detail-head { margin-bottom: 20px; }
+.commit-detail-headtop {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--divider);
+}
+.commit-detail-msg {
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+.commit-message {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  margin: 0 0 14px;
+}
+
+.commit-detail-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.commit-detail-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  flex: none;
+}
+.commit-author-name {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.commit-detail-committed,
+.commit-committer { color: var(--text-secondary); }
+
+/* Stats bar (surfaceAlt) at the bottom of the header card. */
+.commit-statsbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 11px 20px;
+  background: var(--surface-2);
+  font-size: 13px;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+.commit-statsbar .spacer { flex: 1; }
+.commit-statsbar-ref { display: flex; align-items: center; gap: 6px; }
+.commit-statsbar-ref .msi { font-size: 17px; }
+.commit-statsbar .mono-accent {
+  font-family: var(--font-mono);
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.commit-statsbar a.mono-accent:hover { text-decoration: underline; }
+
+.commit-stat-add {
+  color: var(--success);
+  font-weight: 500;
+}
+.commit-stat-del {
+  color: var(--danger);
+  font-weight: 500;
+}
+
+/* Two-column grid: sticky changed-files aside + the per-file diff column. */
+.commit-detail-grid {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .commit-detail-grid { grid-template-columns: 1fr; }
+}
+
+/* Changed-files sidebar (a .card with a sticky position). */
+.commit-files { position: sticky; top: 88px; }
+.commit-files .card-head .countchip { margin-left: auto; }
+.commit-files-list { padding: 6px 0; }
+.commit-files-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+}
+.commit-files-row .msi { font-size: 18px; color: var(--text-secondary); flex: none; }
+.commit-files-path {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-primary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.commit-files-stat {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex: none;
+}
+
+/* Diff column: the render.Diff output stacks with spacing between files. */
+.commit-detail-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+
+/* --------------------------------------------------------------------------
+   13. Diff table
+   -------------------------------------------------------------------------- */
+.commit-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Per-file diff container */
+.diff-file {
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+
+/* File header row */
+.diff-file-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--surface-3);
+  font-size: 0.875rem;
+  flex-wrap: wrap;
+}
+
+.diff-file-path {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  margin-right: auto;
+}
+
+.diff-file-tag {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 6px;
+  border-radius: 20px;
+}
+
+.diff-file-new {
+  background: var(--success-subtle);
+  color: var(--success);
+  border: 1px solid #a8f0c0;
+}
+
+.diff-file-deleted {
+  background: var(--danger-subtle);
+  color: var(--danger);
+  border: 1px solid #ffcecb;
+}
+
+.diff-file-stat {
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.diff-stat-add {
+  color: var(--success);
+}
+
+.diff-stat-del {
+  color: var(--danger);
+}
+
+/* Diff table itself */
+.diff-table {
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  border-collapse: collapse;
+  background: var(--surface-0);
+  overflow-x: auto;
+  display: block;
+}
+
+.diff-table tbody {
+  display: table;
+  width: 100%;
+}
+
+/* Gutter cells — old + new line numbers */
+.diff-gutter {
+  width: 1%;
+  min-width: 44px;
+  padding: 1px 10px;
+  text-align: right;
+  background: var(--diff-gutter-bg);
+  color: var(--diff-gutter-fg);
+  user-select: none;
+  white-space: nowrap;
+  border-right: 1px solid var(--surface-3);
+  vertical-align: top;
+  line-height: 1.6;
+}
+
+/* Code content cell */
+.diff-line {
+  padding: 1px 0 1px 12px;
+  white-space: pre;
+  overflow: hidden;
+  line-height: 1.6;
+  vertical-align: top;
+}
+
+/* Sign character (+/-/ ) */
+.diff-sign {
+  display: inline-block;
+  width: 14px;
+  user-select: none;
+  color: var(--text-muted);
+}
+
+/* Addition row */
+tr.diff-add {
+  background: var(--success-subtle);
+}
+tr.diff-add .diff-gutter {
+  background: var(--success-muted);
+  color: var(--success);
+}
+tr.diff-add .diff-sign {
+  color: var(--success);
+  font-weight: 700;
+}
+
+/* Deletion row */
+tr.diff-del {
+  background: var(--danger-subtle);
+}
+tr.diff-del .diff-gutter {
+  background: var(--danger-muted);
+  color: var(--danger);
+}
+tr.diff-del .diff-sign {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+/* Context row */
+tr.diff-ctx {
+  background: var(--surface-0);
+}
+
+/* Hunk header row */
+tr.diff-hunk {
+  background: var(--diff-hunk-bg);
+}
+tr.diff-hunk .diff-gutter {
+  background: var(--diff-hunk-bg);
+}
+tr.diff-hunk .diff-hunk-header {
+  color: var(--diff-hunk-text);
+  font-style: italic;
+  padding-left: 16px;
+}
+
+/* Binary file notice */
+.diff-binary {
+  padding: 14px 16px;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  background: var(--surface-1);
+  font-style: italic;
+}
+
+/* --------------------------------------------------------------------------
+   14. Pager
+   -------------------------------------------------------------------------- */
+.commit-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 0 4px;
+}
+
+/* --------------------------------------------------------------------------
+   15. Empty / not-found states
+   -------------------------------------------------------------------------- */
+.empty {
+  color: var(--text-muted);
+  padding: 32px 0;
+  text-align: center;
+}
+
+
+.not-found {
+  padding: 48px 24px;
+  text-align: center;
+}
+.not-found h1 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+.not-found code {
+  padding: 2px 6px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: 4px;
+}
+
+/* --------------------------------------------------------------------------
+   16. Tree section (subdirectory view)
+   -------------------------------------------------------------------------- */
+.tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* --------------------------------------------------------------------------
+   17. htmx loading indicator (tiny top-bar progress feel)
+   -------------------------------------------------------------------------- */
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+  opacity: 1;
+}
+
+#htmx-indicator {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 3px;
+  background: var(--accent);
+  border-radius: 0 2px 2px 0;
+  z-index: 9999;
+  transition: width 0.3s ease;
+}
+
+/* --------------------------------------------------------------------------
+   18. Scrollbar polish (Webkit)
+   -------------------------------------------------------------------------- */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-1);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--surface-3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9198a1;
+}
+
+/* --------------------------------------------------------------------------
+   19. Dark surface tweaks (app is always dark — Forge)
+   -------------------------------------------------------------------------- */
+.repo-card:hover {
+  border-color: var(--text-muted);
+}
+
+
+.markdown-body pre,
+.markdown-body code {
+  background: var(--surface-2);
+  border-color: var(--surface-3);
+}
+
+.file-body .lntd:first-child {
+  background: var(--surface-1);
+  border-right-color: var(--surface-3);
+}
+
+/* Keep the "github" chroma style readable on the dark code surface. */
+.file-body pre,
+.markdown-body pre {
+  background: var(--surface-1) !important;
+}
+
+/* --------------------------------------------------------------------------
+   Admin: repository ID cell + copy button
+   -------------------------------------------------------------------------- */
+.repo-id-cell {
+  white-space: nowrap;
+}
+.repo-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8125rem;
+  user-select: all;            /* one click selects the whole id */
+  color: var(--text-primary);
+}
+.copy-btn {
+  margin-left: 8px;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.copy-btn:hover {
+  background: var(--surface-2);
+}
+
+/* ==========================================================================
+   FORGE COMPONENTS — 1:1 port of design-reference/Forge
+   ========================================================================== */
+
+/* ---- Cards -------------------------------------------------------------- */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+.card + .card { margin-top: 24px; }
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--surface-3);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.card-head .msi { font-size: 18px; color: var(--text-secondary); }
+
+/* ---- Buttons ------------------------------------------------------------ */
+.accentbtn,
+.pillbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  padding: 8px 16px;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.accentbtn {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+.accentbtn:hover { background: var(--accent-hover); color: #fff; text-decoration: none; }
+.accentbtn .msi { font-size: 18px; }
+.pillbtn {
+  border: 1px solid var(--surface-3);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  padding: 8px 14px;
+}
+.pillbtn:hover { background: var(--surface-2); color: var(--text-primary); text-decoration: none; }
+.pillbtn .msi { font-size: 18px; color: var(--text-secondary); }
+
+/* ---- Badges / chips ----------------------------------------------------- */
+.badge {
+  border: 1px solid var(--surface-3);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 11px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+.badge.accent { border-color: transparent; background: var(--accent-subtle); color: var(--accent-text); }
+.countchip {
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+/* ---- Tab bar ------------------------------------------------------------ */
+.tabbar {
+  border-bottom: 1px solid var(--surface-3);
+  display: flex;
+  gap: 2px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  white-space: nowrap;
+  text-decoration: none;
+}
+.tab:hover { color: var(--text-primary); text-decoration: none; }
+.tab .msi { font-size: 18px; }
+.tab.active {
+  border-bottom-color: var(--accent-text);
+  color: var(--accent-text);
+  font-weight: 500;
+}
+.tab.active .msi { color: var(--accent-text); }
+
+/* ---- Repo header (breadcrumb + actions) --------------------------------- */
+.repo-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.repo-crumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 21px;
+  color: var(--text-secondary);
+}
+.repo-crumb > .msi { font-size: 26px; color: var(--text-secondary); }
+.repo-crumb a { color: var(--accent-text); text-decoration: none; }
+.repo-crumb a:hover { text-decoration: none; opacity: 0.9; }
+.repo-crumb a.repo-name-strong { font-weight: 700; }
+.repo-head-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---- Code view layout --------------------------------------------------- */
+.code-layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 24px;
+  align-items: start;
+}
+@media (max-width: 900px) {
+  .code-layout { grid-template-columns: 1fr; }
+}
+.code-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.code-toolbar .spacer { flex: 1; }
+.code-toolbar .muted { color: var(--text-secondary); font-size: 13px; }
+.code-toolbar .muted strong { color: var(--text-primary); }
+
+/* ---- File table --------------------------------------------------------- */
+.ftable-headrow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--surface-3);
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.ftable-headrow strong { color: var(--text-primary); font-weight: 500; }
+.frow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--divider);
+}
+.frow:last-child { border-bottom: none; }
+.frow:hover { background: var(--surface-2); }
+.frow .msi { font-size: 20px; }
+.frow .icon-dir { color: var(--accent-text); }
+.frow .icon-file { color: var(--text-secondary); }
+.frow-name { font-size: 14px; color: var(--text-primary); text-decoration: none; flex: none; min-width: 150px; }
+.frow-name:hover { text-decoration: underline; color: var(--text-primary); }
+.frow-spacer { flex: 1; }
+.frow-lock { color: var(--text-secondary); display: inline-flex; align-items: center; gap: 4px; font-size: 12px; }
+.frow-lock .msi { font-size: 16px; color: var(--warning); }
+
+/* ---- Commit history list (Forge) ---------------------------------------- */
+/* The list is a flex column of date groups (gap 20px); each group is a headline
+   OUTSIDE the card, then a card of rows. */
+.commit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.commit-grouphead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+.commit-grouphead .msi { font-size: 18px; }
+
+/* A commit row: avatar + main block (subject + muted sub) + hash chip + copy. */
+.commit-listrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--divider);
+}
+.commit-listrow:last-child { border-bottom: none; }
+.commit-listrow-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  flex: none;
+}
+.commit-listrow-main { flex: 1; min-width: 0; }
+.commit-listrow-subject {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-decoration: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.commit-listrow-subject:hover { text-decoration: underline; color: var(--text-primary); }
+.commit-listrow-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.commit-listrow-author { font-weight: 500; }
+.commit-listrow-hash {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--chip-bg);
+  color: var(--accent-text);
+  padding: 3px 10px;
+  border-radius: 6px;
+  flex: none;
+  text-decoration: none;
+}
+.commit-listrow-hash:hover { color: var(--accent-text); text-decoration: none; opacity: 0.85; }
+.commit-listrow-copy {
+  font-size: 20px;
+  color: var(--text-secondary);
+  flex: none;
+}
+
+/* Monospace short-sig chip linking to the commit. */
+a.sig-chip {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 1px 7px;
+  border: 1px solid var(--surface-3);
+  border-radius: 6px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+a.sig-chip:hover { background: var(--accent-subtle); color: var(--accent-text); border-color: transparent; text-decoration: none; }
+
+/* Pager built on .code-toolbar; disabled pills are non-interactive. */
+.commit-pager { margin-top: 16px; }
+.pillbtn.disabled {
+  opacity: 0.45;
+  cursor: default;
+  pointer-events: none;
+}
+
+/* ---- Branch switcher (repo home) ---------------------------------------- */
+/* A <details> dropdown: the summary is styled as a .pillbtn, the menu is an
+   absolute-positioned surface reusing the .admin-inline-form[open] pattern. */
+.branch-picker { position: relative; display: inline-block; }
+.branch-picker > summary { list-style: none; }
+.branch-picker > summary::-webkit-details-marker { display: none; }
+.branch-picker > summary { cursor: pointer; }
+.branch-menu {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-2);
+}
+.branch-menu a {
+  display: block;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  color: var(--text-primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.branch-menu a:hover { background: var(--surface-2); text-decoration: none; }
+.branch-menu a.active { color: var(--accent-text); font-weight: 500; }
+
+/* ---- README card body --------------------------------------------------- */
+.readme-body { padding: 28px 32px; }
+
+/* ---- Aside (About) ------------------------------------------------------ */
+.aside { display: flex; flex-direction: column; gap: 20px; }
+.aside-card {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-1);
+}
+.aside-card h3 { margin: 0 0 8px; font-size: 15px; font-weight: 500; color: var(--text-primary); }
+.aside-card p { margin: 0 0 16px; font-size: 14px; color: var(--text-secondary); line-height: 1.5; }
+.aside-meta { display: flex; flex-direction: column; gap: 11px; border-top: 1px solid var(--divider); padding-top: 14px; }
+.aside-meta .row { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--text-secondary); }
+.aside-meta .row .msi { font-size: 18px; color: var(--text-secondary); }
+.aside-meta .row strong { color: var(--text-primary); font-weight: 500; }
+
+/* Clone / set up helper card. */
+.aside-card .clone-cmd {
+  display: block;
+  background: var(--code-bg);
+  color: #e8eaed;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  margin: 0 0 4px;
+  overflow-x: auto;
+  white-space: pre;
+}
+.aside-card .clone-cmd::selection { background: var(--accent-subtle); }
+.aside-card p.muted small { color: var(--text-secondary); }
+.aside-card .clone-id {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.aside-card .clone-id code {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-primary);
+  background: var(--surface-2);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  user-select: all;
+}
+
+/* ---- List/grid table (home + admin) ------------------------------------- */
+.page-head { margin-bottom: 10px; }
+.page-head h1 { margin: 0; font-size: 24px; font-weight: 500; color: var(--text-primary); }
+.page-head p { margin: 5px 0 0; color: var(--text-secondary); font-size: 14px; }
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0;
+  flex-wrap: wrap;
+}
+.toolbar-row .spacer { flex: 1; }
+.toolbar-row .count { font-size: 13px; color: var(--text-secondary); }
+.lt-head, .lt-row { display: grid; align-items: center; gap: 12px; padding: 14px 18px; grid-template-columns: var(--cols, 1fr); }
+.lt-head {
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--surface-3);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  padding: 12px 18px;
+}
+.lt-row { border-bottom: 1px solid var(--divider); }
+.lt-row:last-child { border-bottom: none; }
+.lt-row:hover { background: var(--surface-2); }
+.lt-primary { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.lt-primary > .msi { font-size: 22px; color: var(--accent-text); flex: none; }
+.lt-primary .name { font-size: 14px; font-weight: 500; color: var(--text-primary); text-decoration: none; }
+.lt-primary .name:hover { text-decoration: underline; }
+.lt-primary .sub { font-size: 12px; color: var(--text-secondary); }
+.lt-empty { padding: 28px 18px; text-align: center; color: var(--text-secondary); }
+.lt-row .sub-desc { font-size: 13px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lt-row .badge .msi { color: var(--text-secondary); }
+
+/* ==========================================================================
+   FORGE ADMIN — Administration page-head, forms, tables
+   ========================================================================== */
+.admin > h1 {
+  margin: 0 0 4px;
+  font-size: 24px;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.admin-error {
+  background: var(--danger-subtle);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+.admin-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 16px;
+}
+.admin-hint code {
+  background: var(--chip-bg);
+  color: var(--chip-text);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+/* Collapsible create/import panels as Forge cards. */
+.admin-create {
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-1);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.admin-create > summary {
+  padding: 13px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+  background: var(--surface-2);
+  list-style: none;
+}
+.admin-create > summary::-webkit-details-marker { display: none; }
+.admin-create > summary::before { content: "add"; font-family: 'Material Symbols Outlined'; font-size: 18px; vertical-align: -4px; margin-right: 8px; color: var(--text-secondary); }
+.admin-create[open] > summary { border-bottom: 1px solid var(--surface-3); }
+
+/* Forms. */
+.admin-form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 18px;
+}
+.admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.admin-form input[type="text"],
+.admin-form input[type="password"],
+.admin-form textarea,
+.admin-form select {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  padding: 9px 12px;
+  min-width: 200px;
+  outline: none;
+}
+.admin-form input:focus,
+.admin-form textarea:focus,
+.admin-form select:focus { border-color: var(--accent-text); }
+.admin-form .admin-checkbox {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-primary);
+}
+.admin-form input[type="checkbox"],
+.admin-form input[type="radio"] { accent-color: var(--accent); width: 18px; height: 18px; }
+.admin-form button[type="submit"] {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  padding: 9px 18px;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
+}
+.admin-form button[type="submit"]:hover { background: var(--accent-hover); }
+.admin-form button.admin-delete { background: transparent; color: var(--danger); border: 1px solid var(--danger); box-shadow: none; }
+.admin-form button.admin-delete:hover { background: var(--danger-subtle); }
+
+/* Tables as Forge cards. */
+.admin-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-1);
+}
+.admin-table thead th {
+  text-align: left;
+  background: var(--surface-2);
+  border-bottom: 1px solid var(--surface-3);
+  padding: 12px 18px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.admin-table tbody td {
+  padding: 13px 18px;
+  border-bottom: 1px solid var(--divider);
+  font-size: 14px;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+.admin-table tbody tr:last-child td { border-bottom: none; }
+.admin-table tbody tr:hover { background: var(--surface-2); }
+.admin-table code { font-family: var(--font-mono); font-size: 0.85em; color: var(--text-primary); }
+.admin-empty { color: var(--text-secondary); text-align: center; padding: 24px; }
+
+/* Inline row actions. */
+.admin-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.admin-actions button,
+.admin-inline-form summary {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  cursor: pointer;
+  border: 1px solid var(--surface-3);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  list-style: none;
+}
+.admin-actions button:hover, .admin-inline-form summary:hover { background: var(--surface-2); }
+.admin-actions .admin-delete { color: var(--danger); border-color: var(--danger); background: transparent; }
+.admin-actions .admin-delete:hover { background: var(--danger-subtle); }
+.admin-inline-form { position: relative; display: inline-block; }
+.admin-inline-form summary::-webkit-details-marker { display: none; }
+.admin-inline-form[open] > form {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  left: 0;
+  display: flex;
+  gap: 6px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  padding: 10px;
+  box-shadow: var(--shadow-2);
+}
+.admin-inline-form input { background: var(--input-bg); border: 1px solid var(--surface-3); border-radius: var(--radius-sm); padding: 7px 10px; color: var(--text-primary); font-size: 13px; outline: none; }
+.admin-inline-form button { border: none; background: var(--accent); color: #fff; border-radius: var(--radius-sm); padding: 7px 12px; font-size: 13px; cursor: pointer; }
+
+/* Admin/role chips. */
+.role-chip {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 12px;
+  border-radius: 12px;
+  background: var(--chip-bg);
+  color: var(--chip-text);
+}
+.role-chip.admin { background: var(--accent-subtle); color: var(--accent-text); }
+
+/* ==========================================================================
+   FORGE GRANTS — two-pane permission-toggle UI
+   ========================================================================== */
+.perm-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 24px;
+  align-items: start;
+  margin-bottom: 24px;
+}
+@media (max-width: 900px) {
+  .perm-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Left pane: member list -------------------------------------------- */
+.member-list { display: flex; flex-direction: column; }
+.member-search {
+  position: relative;
+  padding: 14px;
+  border-bottom: 1px solid var(--divider);
+}
+.member-search .msi {
+  position: absolute;
+  left: 26px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  color: var(--text-secondary);
+}
+.member-search input {
+  width: 100%;
+  border: 1px solid var(--surface-3);
+  background: var(--input-bg);
+  border-radius: 8px;
+  padding: 9px 12px 9px 42px;
+  font-size: 14px;
+  color: var(--text-primary);
+  outline: none;
+}
+.member-search input:focus { border-color: var(--accent-text); }
+.member-list-scroll { max-height: 560px; overflow: auto; }
+.member-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--divider);
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--text-primary);
+}
+.member-row:hover { background: var(--surface-2); text-decoration: none; }
+.member-row.selected { background: var(--accent-subtle); }
+.member-row.selected .member-name { color: var(--accent-text); }
+.member-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+  flex: none;
+}
+.member-meta { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.member-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.member-sub {
+  font-size: 12px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.member-tag {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+}
+.member-check { font-size: 20px; color: var(--accent-text); flex: none; }
+
+/* ---- Right pane: permission panel -------------------------------------- */
+.perm-panel { display: flex; flex-direction: column; }
+.perm-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--surface-3);
+}
+.perm-panel-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: 500;
+  text-transform: uppercase;
+  flex: none;
+}
+.perm-panel-id { flex: 1; min-width: 0; }
+.perm-panel-namerow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.perm-panel-name { font-size: 17px; font-weight: 500; color: var(--text-primary); }
+.perm-panel-count { font-size: 13px; color: var(--text-secondary); margin-top: 3px; }
+.perm-panel-note { font-size: 12px; color: var(--text-secondary); margin-top: 4px; font-style: italic; }
+.perm-resource-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 16px 20px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+.perm-resource-id {
+  font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 11px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--text-secondary);
+}
+.perm-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 20px;
+  border-top: 1px solid var(--divider);
+}
+.perm-item-meta { flex: 1; min-width: 0; }
+.perm-item-label { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+.perm-item-desc { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+.perm-toggle-form { flex: none; margin: 0; line-height: 0; }
+.perm-toggle {
+  width: 42px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--surface-3);
+  position: relative;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  flex: none;
+  transition: background 0.15s;
+}
+.perm-toggle.on { background: var(--accent); }
+.perm-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.15s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.perm-toggle.on .perm-knob { transform: translateX(18px); }
+
+/* ==========================================================================
+   FORGE AUTH — login / first-run setup
+   ========================================================================== */
+.auth-wrap {
+  display: flex;
+  justify-content: center;
+  padding-top: 48px;
+}
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface-1);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  padding: 32px 32px 36px;
+}
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+.auth-brand .brand-logo {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auth-brand .brand-logo .msi { font-size: 22px; }
+.auth-brand .brand-name { font-size: 20px; font-weight: 500; color: var(--text-primary); }
+.auth-title {
+  margin: 0 0 6px;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  text-align: center;
+}
+.auth-sub {
+  margin: 0 0 20px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.5;
+}
+.auth-error {
+  background: var(--danger-subtle);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  margin: 12px 0;
+}
+.auth-form { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.auth-form input {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--surface-3);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  outline: none;
+}
+.auth-form input:focus { border-color: var(--accent-text); }
+.auth-submit { justify-content: center; margin-top: 4px; padding: 10px 16px; }
+
+/* ==========================================================================
+   FORGE HOME — dashboard (user header, heatmap, feed, repos sidebar)
+   ========================================================================== */
+.home-userhead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 18px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--surface-3);
+}
+.home-userlogo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--accent-subtle);
+  color: var(--accent-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.home-userlogo .msi { font-size: 22px; }
+.home-username { font-size: 18px; font-weight: 500; color: var(--text-primary); }
+.home-userchev { font-size: 20px; color: var(--text-secondary); cursor: pointer; }
+
+.home-grid {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) 340px;
+  gap: 28px;
+  align-items: start;
+}
+@media (max-width: 900px) { .home-grid { grid-template-columns: 1fr; } }
+
+/* Contribution heatmap. */
+.heat-card { padding: 18px 20px; overflow-x: auto; }
+.heat-scroll { width: max-content; }
+.heat-months {
+  display: flex;
+  justify-content: space-between;
+  width: 725px;
+  margin-left: 30px;
+  margin-bottom: 6px;
+}
+.heat-months span { font-size: 11px; color: var(--text-secondary); }
+.heat-body { display: flex; gap: 6px; }
+.heat-days {
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  gap: 3px;
+  width: 24px;
+  font-size: 9px;
+  color: var(--text-secondary);
+}
+.heat-grid {
+  display: grid;
+  grid-template-rows: repeat(7, 11px);
+  grid-auto-flow: column;
+  grid-auto-columns: 11px;
+  gap: 3px;
+  width: 725px;
+}
+.heat-cell { width: 11px; height: 11px; border-radius: 2px; background: var(--surface-2); }
+.heat-cell.l0 { background: var(--surface-2); }
+.heat-cell.l1 { background: rgba(253,185,94,0.25); }
+.heat-cell.l2 { background: rgba(253,185,94,0.45); }
+.heat-cell.l3 { background: rgba(253,185,94,0.70); }
+.heat-cell.l4 { background: var(--accent); }
+.heat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 725px;
+  margin-left: 30px;
+  margin-top: 12px;
+}
+.heat-foot > span:first-child { font-size: 12px; color: var(--text-secondary); }
+.heat-legend { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-secondary); }
+
+/* Activity feed (empty state for now). */
+.home-feed-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--text-secondary);
+  border: 1px dashed var(--surface-3);
+  border-radius: var(--radius-lg);
+}
+.home-feed-empty .msi { font-size: 32px; color: var(--text-muted); }
+.home-feed-empty p { margin: 0; font-size: 14px; }
+
+/* Repositories sidebar. */
+.home-aside-tabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid var(--surface-3);
+  margin-bottom: 16px;
+}
+.home-aside-tabs span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  padding: 0 2px 12px;
+  cursor: pointer;
+}
+.home-aside-tabs span.active { color: var(--accent-text); font-weight: 500; border-bottom: 2px solid var(--accent-text); }
+.aside-search { padding: 14px; border-bottom: 1px solid var(--divider); display: flex; gap: 8px; }
+.aside-search { position: relative; }
+.aside-search .msi.s { position: absolute; left: 26px; top: 50%; transform: translateY(-50%); font-size: 20px; color: var(--text-secondary); pointer-events: none; }
+.aside-search input {
+  flex: 1;
+  border: 1px solid var(--surface-3);
+  background: var(--input-bg);
+  border-radius: var(--radius-md);
+  padding: 9px 12px 9px 42px;
+  font-size: 14px;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  outline: none;
+}
+.aside-tune {
+  border: 1px solid var(--surface-3);
+  background: var(--input-bg);
+  border-radius: var(--radius-md);
+  width: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.aside-filters { display: flex; gap: 18px; padding: 11px 16px; border-bottom: 1px solid var(--divider); font-size: 13px; }
+.aside-filters span { color: var(--text-secondary); cursor: pointer; }
+.aside-filters span.active { color: var(--accent-text); font-weight: 500; }
+.aside-repo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--divider);
+  font-size: 14px;
+  color: var(--accent-text);
+  text-decoration: none;
+}
+.aside-repo:last-child { border-bottom: none; }
+.aside-repo:hover { text-decoration: none; background: var(--surface-2); color: var(--accent-text); }
+.aside-repo .msi { font-size: 18px; color: var(--text-secondary); }

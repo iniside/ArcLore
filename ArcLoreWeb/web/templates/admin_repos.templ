@@ -1,0 +1,119 @@
+package templates
+
+// AdminRepoView is the display model for one repository row on the admin repos page.
+type AdminRepoView struct {
+	ID                string // 32 lowercase-hex repository id (for `lore` wire-up)
+	Name              string
+	Description       string
+	DefaultBranchName string
+	Creator           string
+}
+
+// AdminReposPage renders the repository management screen: the current repo
+// list (sourced from lore.ListRepositories) and a "New repository" form whose
+// POST handler is stubbed pending Step 8.
+//
+// errMsg is shown when non-empty (e.g. Step 8 wires a real error response).
+templ AdminReposPage(repos []AdminRepoView, errMsg string) {
+	<section class="admin">
+		@AdminHeader("repos")
+		if errMsg != "" {
+			<p class="admin-error">{ errMsg }</p>
+		}
+		<details class="admin-create">
+			<summary>New repository</summary>
+			<form class="admin-form" method="post" action="/admin/repos">
+				<label>
+					Name
+					<input type="text" name="name" required/>
+				</label>
+				<label>
+					Description
+					<input type="text" name="description"/>
+				</label>
+				<button type="submit">Create repository</button>
+			</form>
+		</details>
+		<details class="admin-create">
+			<summary>Import existing repository</summary>
+			<p class="admin-hint">
+				Register a repo that already exists on lore-server but isn't listed here
+				(e.g. created before this panel, or after a DB reset). Paste its
+				<strong>Repository ID</strong> (32-hex); you become its owner and it
+				appears below with its real name.
+				A repo that exists on the server but isn&#39;t listed here? Get its ID with <code>lore status</code> in the wired folder and import it by ID. (The panel can&#39;t auto-discover it — lore-server only lists registered repos.)
+			</p>
+			<form class="admin-form" method="post" action="/admin/repos/import">
+				<label>
+					Repository ID
+					<input type="text" name="resource_id" placeholder="019ed680340e706199da36c108c00af7" required/>
+				</label>
+				<label>
+					Name (optional)
+					<input type="text" name="name"/>
+				</label>
+				<button type="submit">Import repository</button>
+			</form>
+		</details>
+		<p class="admin-hint">
+			The <strong>Repository ID</strong> is what wires a local folder to a repo:
+			<code>lore repository create lore://&lt;host&gt;:41337/&lt;name&gt; --id &lt;ID&gt;</code>
+			(attach an existing folder), or just <code>lore clone lore://&lt;host&gt;:41337/&lt;name&gt;</code>
+			(fresh checkout — resolves the ID for you).
+		</p>
+		<table class="admin-table">
+			<thead>
+				<tr>
+					<th>Name</th>
+					<th>Repository ID</th>
+					<th>Description</th>
+					<th>Default branch</th>
+					<th>Creator</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, repo := range repos {
+					<tr>
+						<td>
+							<a href={ templ.SafeURL("/-/" + repo.Name) }>{ repo.Name }</a>
+						</td>
+						<td class="repo-id-cell">
+							<code class="repo-id">{ repo.ID }</code>
+							<button type="button" class="copy-btn" data-copy={ repo.ID } title="Copy repository ID">Copy</button>
+						</td>
+						<td>{ repo.Description }</td>
+						<td>{ repo.DefaultBranchName }</td>
+						<td>{ repo.Creator }</td>
+						<td>
+							<form method="post" action={ templ.SafeURL("/admin/repos/" + repo.ID + "/delete") } onsubmit="return confirm('Delete this repository? This permanently deletes it on the server and removes its access entry. This cannot be undone.')" style="display:inline">
+								<button type="submit" class="admin-delete">Delete</button>
+							</form>
+						</td>
+					</tr>
+				}
+				if len(repos) == 0 {
+					<tr>
+						<td colspan="6" class="admin-empty">No repositories yet.</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+		// Copy-to-clipboard for the repository IDs. Delegated on document and
+		// guarded so it binds exactly once even though htmx re-runs this script
+		// on each #main-content swap. IDs are 32-hex (no escaping concerns).
+		<script>
+			if (!window.__arcCopyBound) {
+				window.__arcCopyBound = true;
+				document.addEventListener('click', function (e) {
+					var btn = e.target.closest('.copy-btn');
+					if (!btn) return;
+					navigator.clipboard.writeText(btn.dataset.copy);
+					var prev = btn.textContent;
+					btn.textContent = 'Copied';
+					setTimeout(function () { btn.textContent = prev; }, 1200);
+				});
+			}
+		</script>
+	</section>
+}

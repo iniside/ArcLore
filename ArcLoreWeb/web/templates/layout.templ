@@ -1,0 +1,68 @@
+package templates
+
+// Layout is the minimal base shell every page renders into. The content
+// component is injected into <main id="main-content"> so htmx can later swap
+// just that node on partial navigation.
+//
+// In-app navigation links carry hx-get / hx-target="#main-content" /
+// hx-push-url="true" so htmx swaps only the main region without a full
+// reload. The plain href is preserved as a no-JS fallback.
+//
+// isAdmin controls whether the Admin pill is shown in the top nav.
+// username is the signed-in user; when non-empty the nav shows the user and a
+// Logout link. It is empty for the login page (which also renders through this
+// Layout), so the logout affordance is hidden there.
+// section is "repo" or "admin" (empty on auth pages) and marks the active pill.
+// The appbar is intentionally a Repository/Admin TOGGLE only — the admin
+// sub-sections (Users/Repos/Grants) live as a tab bar on the admin page itself.
+templ Layout(title string, content templ.Component, username string, isAdmin bool, section string) {
+	<!DOCTYPE html>
+	<html lang="en">
+		<head>
+			<meta charset="utf-8"/>
+			<meta name="viewport" content="width=device-width, initial-scale=1"/>
+			<title>{ title }</title>
+			<link rel="stylesheet" href="/static/app.css"/>
+			<link rel="stylesheet" href="/static/chroma.css"/>
+			<script src="/static/htmx.min.js" defer></script>
+		</head>
+		<body>
+			<nav class="topnav">
+				<a
+					href="/"
+					class="brand"
+					hx-get="/"
+					hx-target="#main-content"
+					hx-push-url="true"
+				>
+					<span class="brand-logo"><span class="msi">deployed_code</span></span>
+					<span class="brand-name">ArcLore</span>
+				</a>
+				if username != "" {
+					<div class="nav-search">
+						<span class="msi">search</span>
+						// Visual only for now — search lands later.
+						<input type="text" placeholder="Search repositories, users, code…" aria-label="Search"/>
+					</div>
+					<span class="nav-spacer"></span>
+					<div class="nav-links">
+						<a href="/" class={ templ.KV("active", section == "home") }>Home</a>
+						<a href="/explore" class={ templ.KV("active", section == "explore") }>Explore</a>
+						if isAdmin {
+							<a href="/admin/repos" class={ templ.KV("active", section == "admin") }>Admin</a>
+						}
+					</div>
+					<span class="nav-bell msi" title="Notifications">notifications</span>
+					// Avatar doubles as the sign-out control (full navigation clears the
+					// session cookie; the reference hosts logout in an avatar menu).
+					<a href="/auth/logout" class="nav-avatar" title="Sign out">{ Initials(username) }</a>
+				} else {
+					<span class="nav-spacer"></span>
+				}
+			</nav>
+			<main id="main-content" hx-boost="false">
+				@content
+			</main>
+		</body>
+	</html>
+}

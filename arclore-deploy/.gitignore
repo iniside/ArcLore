@@ -1,0 +1,5 @@
+# Re-include systemd unit templates that the root .gitignore's catch-all (*)
+# excludes (there is no !*.service whitelist at repo root). Scoped here so the
+# root .gitignore is never touched.
+!systemd/
+!systemd/*.service

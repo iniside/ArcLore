@@ -1,0 +1,35 @@
+package templates
+
+// AccountPage is the self-service account screen for any logged-in user. The
+// change-password form POSTs to /account/password, which calls arc-lore-auth's
+// /api/me/password. errMsg is shown when the change fails (e.g. a wrong current
+// password); success is shown as a confirmation note when non-empty. It uses
+// the Forge page-head + .card style.
+templ AccountPage(errMsg, success string) {
+	<section class="account">
+		<div class="page-head">
+			<h1>Account</h1>
+			<p>Manage your sign-in credentials.</p>
+		</div>
+		<div class="card">
+			<h2>Change password</h2>
+			if errMsg != "" {
+				<p class="admin-error">{ errMsg }</p>
+			}
+			if success != "" {
+				<p class="admin-success">{ success }</p>
+			}
+			<form class="admin-form" method="post" action="/account/password">
+				<label>
+					Current password
+					<input type="password" name="current" autocomplete="current-password" required/>
+				</label>
+				<label>
+					New password
+					<input type="password" name="new" autocomplete="new-password" required/>
+				</label>
+				<button type="submit">Change password</button>
+			</form>
+		</div>
+	</section>
+}

@@ -1,0 +1,137 @@
+# arc-lore-auth — example configuration
+# Copy and edit this file; run arc-lore-auth with -config /path/to/your/config.toml
+
+# HTTP daemon bind address (JWKS endpoint + HTTP token minting)
+listen_addr = "127.0.0.1:8080"
+
+# ── gRPC exchange (TLS) ───────────────────────────────────────────────────────
+#
+# The editor's Lore plugin calls ExchangeUserTokenForMultiresourceToken over
+# gRPC+TLS on every repo op (lock, commit, status). Without this listener up,
+# enabling server auth causes every op to 401.
+
+# gRPC listener bind address. Expose on 0.0.0.0 so editor hosts on other
+# machines can reach it; scope with a firewall rule if needed.
+grpc_listen_addr = "0.0.0.0:8443"
+
+# Path to the TLS certificate PEM for the gRPC listener.
+# If both tls_cert_path and tls_key_path are absent on disk, a self-signed cert
+# is generated automatically (for the SAN in tls_san) and written here.
+# Defaults to ./arc-lore-auth-tls.crt (relative to the working directory).
+# tls_cert_path = "./arc-lore-auth-tls.crt"
+
+# Path to the TLS private key PEM paired with the cert above.
+# Defaults to ./arc-lore-auth-tls.key (relative to the working directory).
+# tls_key_path = "./arc-lore-auth-tls.key"
+
+# Subject Alternative Name (SAN) for the auto-generated self-signed TLS cert.
+# REQUIRED (no default) — must exactly equal the hostname or IP that the editor
+# connects to, as set in [environment.endpoint] auth_url on the lore-server.
+# Use an IP-SAN (e.g. "192.168.1.10") if auth_url uses an IP address, or a
+# DNS name (e.g. "lore-auth.internal") if it uses a hostname — the SAN type
+# MUST match (the gRPC client enforces this, there is no skip-verify).
+# The cert is self-signed and must be installed in each editor host's Trusted
+# Root store (see README.md → "TLS cert install").
+tls_san = "my-host.lan"  # REPLACE with the actual auth_url host
+
+# ── JWT claims ────────────────────────────────────────────────────────────────
+
+# Issuer claim (iss). Must match [server.auth] jwt_issuer in lore-server if that
+# option is set. Leave jwt_issuer UNSET on the server to skip the check.
+issuer = "arc-lore-auth"
+
+# Audience claim (aud).
+# CRITICAL: This MUST be the lore-server host domain (or a suffix of it),
+# e.g. "my-host.lan" or "lore-server.internal".
+# The in-editor Lore client gate does:
+#   remote_domain.ends_with(any(aud ∪ {iss}))
+# If you set audience = "lore" (old example) it will fail unless your
+# server is literally hosted at a domain ending in "lore".
+# There is no sensible default — you MUST set this to your server's hostname.
+audience = "my-host.lan"
+
+# Environment tag embedded in every token (env claim).
+# The lore-server does NOT validate this value; it is informational.
+env = "local"
+
+# Identity provider tag (idp claim).
+# The server's AuthorizationToken decode checks for a non-empty idp to decide
+# which decode branch to use (the one that carries resources). MUST be present.
+idp = "arc-lore-auth"
+
+# ── Key & secret storage ──────────────────────────────────────────────────────
+
+# Path to the RSA-2048 private key (PKCS#8 PEM).
+# Defaults to ~/.arc-lore-auth/arc-lore-auth.key (outside repo — never committed).
+# key_path = "/path/to/arc-lore-auth.key"
+
+# ── Token TTL ─────────────────────────────────────────────────────────────────
+
+# How long minted tokens are valid. Default is 7 days (168h).
+# Long TTL reduces re-login friction for dev setups. Adjust as needed.
+# If clocks between this host and the lore-server diverge, tokens may appear
+# expired or not-yet-valid; sync NTP and keep a reasonable TTL.
+token_ttl = "168h"
+
+# ── Optional allowlist ────────────────────────────────────────────────────────
+
+# If set, only these usernames may be minted. Empty = allow any non-empty name.
+# allowed_users = ["lukasz", "alice", "bob"]
+
+# ── Interactive login + user accounts ────────────────────────────────────────
+
+# Path to the JSON user store (argon2id hashes — never plaintext passwords).
+# Default: ./arc-lore-users.json (relative to the working directory).
+# The file is created automatically on the first `useradd` or /admin write.
+# Add this path to .gitignore — it holds credentials.
+users_file = "./arc-lore-users.json"
+
+# Bind address for the HTTP listener that serves BOTH the JWKS endpoint AND the
+# interactive login + user-admin web pages.  Must be reachable by:
+#   - the lore-server (fetches /jwks.json at boot over HTTP), AND
+#   - the artist's browser (opens login_url for interactive login).
+# "0.0.0.0:8080" makes it reachable on all interfaces; scope with a firewall
+# rule if you do not want it exposed beyond the LAN.
+# Default: 0.0.0.0:8080
+web_listen_addr = "0.0.0.0:8080"
+
+# Externally-reachable HTTP base URL used to build the browser login_url.
+# REQUIRED for interactive login — StartAuthSession fails closed if unset.
+# Must be the URL at which the artist's BROWSER can reach this service.
+# No sensible default (depends on your network topology); examples:
+#   web_base_url = "http://authhost.lan:8080"
+#   web_base_url = "http://192.168.1.10:8080"
+# Note: the browser and lore CLI hit this over plain HTTP (cleartext on the LAN
+# — see SECURITY note in README). TLS termination in a reverse proxy is a
+# follow-up out of scope for this release.
+web_base_url = "http://authhost.lan:8080"  # REPLACE with the actual externally-reachable base
+
+# Secret required to access the /admin user-management pages.
+# When set, visiting /admin shows an unlock form; submitting the correct secret
+# issues a short-lived signed cookie (30 min) that allows admin operations.
+# REQUIRED to enable /admin — if empty (or omitted), /admin returns 503
+# ("Admin disabled") and is never served open.
+# Choose a long random string; the operator pastes it once per browser session.
+# admin_secret = ""
+
+# Lifetime of an interactive-login session in seconds.
+# The lore CLI polls for at most 150 s; the session TTL is set longer (600 s)
+# so the human has time to open the browser, type credentials, and submit
+# before the session expires.  Shortening this below ~200 s risks evicting a
+# session mid-login.
+# Default: 600
+session_ttl = 600
+
+# ── Default resource grants ───────────────────────────────────────────────────
+
+# The resources claim grants per-repo access. The wildcard "urc-*" grants
+# read+write to all repos. To restrict to specific repos, list them:
+#
+# [[default_resources]]
+# resource_id = "urc-my-repo"
+# permission = ["read", "write"]
+#
+# Default (empty → wildcard applied in code):
+# [[default_resources]]
+# resource_id = "urc-*"
+# permission = ["read", "write"]

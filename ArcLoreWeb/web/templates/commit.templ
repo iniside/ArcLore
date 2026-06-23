@@ -1,0 +1,150 @@
+package templates
+
+// CommitView is the data for a single commit's diff page. The handler resolves
+// the revision metadata and pre-renders the per-file diff body (a render.Diff
+// component) so the template stays proto-free.
+type CommitView struct {
+	Owner        string
+	RepoName     string
+	BranchName   string // best-effort branch context for parent links ("" if unknown)
+	ShortSig     string
+	HexSig       string
+	Subject      string
+	Body         string // commit message lines after the first
+	Author       string
+	Committer    string // shown only when it differs from Author
+	Date         string // absolute date string
+	Parents      []CommitParentView
+	Files        []CommitFileView // changed-files sidebar entries
+	FilesChanged int
+	Added        uint64
+	Deleted      uint64
+	Diff         templ.Component // pre-rendered per-file diff (render.Diff); nil for empty
+	RootCommit   bool            // no parent — everything is "added"
+}
+
+// CommitParentView is a link to a parent commit.
+type CommitParentView struct {
+	ShortSig string
+	URL      string // /{owner}/{repo}/commit/{hexsig}
+}
+
+// CommitFileView is one entry in the changed-files sidebar: the file path plus
+// its per-file added/deleted line counts (0/0 for binary files).
+type CommitFileView struct {
+	Path string
+	Adds int64
+	Dels int64
+}
+
+// CommitPage renders a commit in the Forge layout: the shared repo sub-header, a
+// "← All commits" back link, the header card (message + meta + stats bar), then a
+// two-column grid pairing a sticky changed-files sidebar with the per-file diff.
+templ CommitPage(view CommitView) {
+	<section class="commit">
+		@RepoSubHeader(view.RepoName, view.BranchName, "commits")
+		<a class="commit-back" href={ templ.SafeURL("/-/" + view.RepoName + "/commits/branch/" + view.BranchName) }>
+			<span class="msi">arrow_back</span>All commits
+		</a>
+		@CommitDetailHead(view)
+		<div class="commit-detail-grid">
+			<aside class="commit-files card">
+				<div class="card-head">
+					<span class="msi">account_tree</span>Changed files
+					<span class="countchip">{ formatInt(view.FilesChanged) }</span>
+				</div>
+				<div class="commit-files-list">
+					for _, file := range view.Files {
+						<div class="commit-files-row">
+							<span class="msi">description</span>
+							<span class="commit-files-path">{ file.Path }</span>
+							<span class="commit-files-stat">+{ formatInt64(file.Adds) } −{ formatInt64(file.Dels) }</span>
+						</div>
+					}
+				</div>
+			</aside>
+			<div class="commit-detail-diff">
+				if view.Diff != nil {
+					@view.Diff
+				} else {
+					<div class="card">
+						<div class="lt-empty">No file changes.</div>
+					</div>
+				}
+			</div>
+		</div>
+	</section>
+}
+
+// CommitDetailHead renders the header card: the commit message, an avatar/author
+// meta row, then a surfaceAlt stats bar (commit/parent sigs · files changed ·
+// +adds / −dels). The optional message body is kept as a mono block.
+templ CommitDetailHead(view CommitView) {
+	<div class="card commit-detail-head">
+		<div class="commit-detail-headtop">
+			<div class="commit-detail-msg">{ view.Subject }</div>
+			if view.Body != "" {
+				<pre class="commit-message">{ view.Body }</pre>
+			}
+			<div class="commit-detail-meta">
+				<span class="commit-detail-avatar">{ Initials(view.Author) }</span>
+				<span class="commit-author-name">{ view.Author }</span>
+				if view.Committer != "" {
+					<span class="commit-committer">committed by { view.Committer }</span>
+				}
+				<span class="commit-detail-committed">committed { view.Date }</span>
+			</div>
+		</div>
+		<div class="commit-statsbar">
+			<span class="commit-statsbar-ref"><span class="msi">commit</span>commit <span class="mono-accent">{ view.ShortSig }</span></span>
+			<span>
+				parent
+				if len(view.Parents) > 0 {
+					<a class="mono-accent" href={ templ.SafeURL(view.Parents[0].URL) }>{ view.Parents[0].ShortSig }</a>
+				} else {
+					<span class="mono-accent">(root)</span>
+				}
+			</span>
+			<span class="spacer"></span>
+			<span>{ pluralFiles(view.FilesChanged) }</span>
+			<span class="commit-stat-add">+{ formatUint(view.Added) }</span>
+			<span class="commit-stat-del">−{ formatUint(view.Deleted) }</span>
+		</div>
+	</div>
+}
+
+// pluralFiles renders "N file changed" / "N files changed".
+func pluralFiles(n int) string {
+	if n == 1 {
+		return "1 file changed"
+	}
+	return formatInt(n) + " files changed"
+}
+
+// formatInt renders a non-negative int as decimal.
+func formatInt(n int) string {
+	return formatUint(uint64(n))
+}
+
+// formatInt64 renders a non-negative int64 as decimal (negative values clamp to 0).
+func formatInt64(n int64) string {
+	if n < 0 {
+		n = 0
+	}
+	return formatUint(uint64(n))
+}
+
+// formatUint renders a uint64 as decimal.
+func formatUint(n uint64) string {
+	if n == 0 {
+		return "0"
+	}
+	var buf [20]byte
+	pos := len(buf)
+	for n > 0 {
+		pos--
+		buf[pos] = byte('0' + n%10)
+		n /= 10
+	}
+	return string(buf[pos:])
+}

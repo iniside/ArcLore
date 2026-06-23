@@ -1,0 +1,9 @@
+# Build artifacts
+/arcloreweb
+/arcloreweb.exe
+/tmp/
+*.out
+
+# Design reference (mockup exports — heavy, not source; never in git/mirror)
+/design-reference/
+*.zip

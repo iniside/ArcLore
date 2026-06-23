@@ -1,0 +1,101 @@
+package templates
+
+// AdminUserView is the display model for one user row.
+type AdminUserView struct {
+	Username    string
+	DisplayName string
+	IsAdmin     bool
+	Created     int64
+}
+
+// AdminUsersPage renders the user management screen: a table of existing users
+// with per-row actions (delete / set-password / toggle-admin) and a create-user
+// form above it. errMsg is shown when non-empty (e.g. a 409 last-admin error).
+// registrationOpen drives the public-registration toggle at the top.
+templ AdminUsersPage(users []AdminUserView, errMsg string, registrationOpen bool) {
+	<section class="admin">
+		@AdminHeader("users")
+		if errMsg != "" {
+			<p class="admin-error">{ errMsg }</p>
+		}
+		<form class="admin-reg-toggle" method="post" action="/admin/registration">
+			if registrationOpen {
+				<span>Registration: <strong>OPEN</strong></span>
+				<input type="hidden" name="open" value="0"/>
+				<button type="submit">Close</button>
+			} else {
+				<span>Registration: <strong>CLOSED</strong></span>
+				<input type="hidden" name="open" value="1"/>
+				<button type="submit">Open</button>
+			}
+		</form>
+		<details class="admin-create" open>
+			<summary>Create user</summary>
+			<form class="admin-form" method="post" action="/admin/users">
+				<label>
+					Username
+					<input type="text" name="username" required/>
+				</label>
+				<label>
+					Display name
+					<input type="text" name="display_name"/>
+				</label>
+				<label>
+					Password
+					<input type="password" name="password" required/>
+				</label>
+				<label class="admin-checkbox">
+					<input type="checkbox" name="is_admin" value="1"/>
+					Admin
+				</label>
+				<button type="submit">Create</button>
+			</form>
+		</details>
+		<table class="admin-table">
+			<thead>
+				<tr>
+					<th>Username</th>
+					<th>Display name</th>
+					<th>Admin</th>
+					<th>Actions</th>
+				</tr>
+			</thead>
+			<tbody>
+				for _, u := range users {
+					<tr>
+						<td>{ u.Username }</td>
+						<td>{ u.DisplayName }</td>
+						<td>
+							if u.IsAdmin {
+								<span class="role-chip admin">Admin</span>
+							} else {
+								<span class="role-chip">Member</span>
+							}
+						</td>
+						<td class="admin-actions">
+							<form method="post" action={ templ.SafeURL("/admin/users/" + u.Username + "/admin") } style="display:inline">
+								if u.IsAdmin {
+									<input type="hidden" name="is_admin" value="0"/>
+									<button type="submit">Demote</button>
+								} else {
+									<input type="hidden" name="is_admin" value="1"/>
+									<button type="submit">Promote</button>
+								}
+							</form>
+							<details class="admin-inline-form">
+								<summary>Set password</summary>
+								<form method="post" action={ templ.SafeURL("/admin/users/" + u.Username + "/password") }>
+									<input type="password" name="password" placeholder="New password" required/>
+									<button type="submit">Set</button>
+								</form>
+							</details>
+							<form method="post" action={ templ.SafeURL("/admin/users/" + u.Username + "/delete") } style="display:inline">
+								<button type="submit" class="admin-delete">Delete</button>
+							</form>
+						</td>
+					</tr>
+				}
+			</tbody>
+		</table>
+	</section>
+}

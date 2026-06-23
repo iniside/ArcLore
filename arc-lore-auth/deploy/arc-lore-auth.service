@@ -1,0 +1,91 @@
+# arc-lore-auth.service — systemd unit for the arc-lore-auth daemon
+#
+# INSTALL
+#   # Stop any nohup instance still holding :8080/:8443
+#   sudo pkill -f arc-lore-auth-linux-amd64
+#   # Drop any old/broken unit (e.g. the lore-user variant)
+#   sudo systemctl disable --now arc-lore-auth 2>/dev/null; true
+#
+#   # Install the unit
+#   sudo cp deploy/arc-lore-auth.service /etc/systemd/system/
+#   # — or via heredoc to avoid scp:
+#   # cat deploy/arc-lore-auth.service | sudo tee /etc/systemd/system/arc-lore-auth.service
+#
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now arc-lore-auth
+#
+#   # Verify
+#   sudo systemctl status arc-lore-auth
+#   sudo journalctl -u arc-lore-auth -n 40
+#   ss -ltnp | grep -E ':8080|:8443'
+#
+#   The journal startup banner shows kid / aud / tls_san — use these to confirm
+#   the signing key was preserved (kid unchanged across restarts) and the
+#   audience / SAN match the lore-server config.
+#
+# PATHS (real /opt+root deployment)
+#   binary : /opt/arc-lore-auth-linux-amd64
+#   config : /opt/config.toml
+#   TLS cert/key, users.json : /opt/ (defaults resolved from WorkingDirectory=/opt)
+#   RSA signing key, issue secret : /root/.arc-lore-auth/ (root's home default)
+#
+#   WARNING — ProtectHome: this unit intentionally omits ProtectHome so that the
+#   signing key and issue secret in /root/.arc-lore-auth/ remain accessible.
+#   ProtectHome=true would hide the home directory, regenerate the signing key on
+#   next start, and immediately invalidate every issued token. To re-enable
+#   ProtectHome, first pin key_path to an absolute path under /opt
+#   in config.toml (see "Hardening" section in INSTALL.md).
+#
+# BOOT ORDERING
+#   Before=loreserver.service gives best-effort ordering at boot but is NOT
+#   guaranteed if loreserver.service uses After= independently.  For reliable
+#   ordering also add these two lines to loreserver.service (or a drop-in):
+#
+#     After=arc-lore-auth.service
+#     Wants=arc-lore-auth.service
+#
+#   A drop-in avoids editing the lore-server vendor unit:
+#     sudo mkdir -p /etc/systemd/system/loreserver.service.d/
+#     printf '[Unit]\nAfter=arc-lore-auth.service\nWants=arc-lore-auth.service\n' | \
+#       sudo tee /etc/systemd/system/loreserver.service.d/arc-lore-auth-dep.conf
+#
+# LOGS
+#   All output (startup banner, issue secret, TLS cert path) goes to journald.
+#   No nohup / logfile needed:
+#     journalctl -u arc-lore-auth -f          # follow
+#     journalctl -u arc-lore-auth -n 50       # last 50 lines
+#
+# CERT ROTATION
+#   The TLS cert regenerates ONLY when both cert+key files are absent at startup.
+#   To rotate (or after changing tls_san in config.toml):
+#     sudo systemctl stop arc-lore-auth
+#     sudo rm /opt/arc-lore-auth-tls.crt \
+#             /opt/arc-lore-auth-tls.key
+#     sudo systemctl start arc-lore-auth
+#   Then re-distribute the new cert to all editor hosts (see INSTALL.md).
+
+[Unit]
+Description=arc-lore-auth — JWKS + gRPC auth (authz exchange + interactive login) for self-hosted Lore
+Documentation=file:///opt/INSTALL.md
+After=network-online.target
+Wants=network-online.target
+# Best-effort: arc-lore-auth should be running before loreserver tries to
+# fetch JWKS at boot.  For hard ordering add the drop-in described above.
+Before=loreserver.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt
+ExecStart=/opt/arc-lore-auth-linux-amd64 -config /opt/config.toml
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+# NOTE: NO ProtectHome — the RSA signing key + issue secret default to
+# /root/.arc-lore-auth/ (root's home); ProtectHome=true would hide them and force
+# a key regen, invalidating every issued token. Pin key_path to /opt
+# in config.toml if you want ProtectHome back.
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,37 @@
+package templates
+
+// RepoSubHeader renders the shared Forge repo chrome (breadcrumb + Code/Commits/
+// Locks tab bar) for the file, tree, commits, and commit pages. repo is the
+// repository name; branch the current branch; active is "code", "commits", or
+// "locks". The repo link uses the /-/<repo> form (owner segment is cosmetic and
+// ignored by RepoHome). The Locks tab requires a branch: when branch is empty
+// (e.g. the commit page, which has no resolved branch) it renders as a disabled
+// span so the link never degrades to /-/<repo>/locks/branch/ → 404.
+templ RepoSubHeader(repo, branch, active string) {
+	<div class="repo-head">
+		<div class="repo-crumb">
+			<span class="msi">menu_book</span>
+			<a class="repo-name-strong" href={ templ.SafeURL("/-/" + repo) }>{ repo }</a>
+			<span class="badge">Private</span>
+		</div>
+	</div>
+	<div class="tabbar">
+		if active == "code" {
+			<a class="tab active" href={ templ.SafeURL("/-/" + repo) }><span class="msi">code</span>Code</a>
+		} else {
+			<a class="tab" href={ templ.SafeURL("/-/" + repo) }><span class="msi">code</span>Code</a>
+		}
+		if active == "commits" {
+			<a class="tab active" href={ templ.SafeURL("/-/" + repo + "/commits/branch/" + branch) }><span class="msi">history</span>Commits</a>
+		} else {
+			<a class="tab" href={ templ.SafeURL("/-/" + repo + "/commits/branch/" + branch) }><span class="msi">history</span>Commits</a>
+		}
+		if branch == "" {
+			<span class="tab" style="opacity:0.5;cursor:default;"><span class="msi">lock</span>Locks</span>
+		} else if active == "locks" {
+			<a class="tab active" href={ templ.SafeURL("/-/" + repo + "/locks/branch/" + branch) }><span class="msi">lock</span>Locks</a>
+		} else {
+			<a class="tab" href={ templ.SafeURL("/-/" + repo + "/locks/branch/" + branch) }><span class="msi">lock</span>Locks</a>
+		}
+	</div>
+}

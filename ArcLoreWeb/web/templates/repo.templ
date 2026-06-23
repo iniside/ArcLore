@@ -1,0 +1,248 @@
+package templates
+
+import "strconv"
+
+// RepoView is the top-level data for the repo home page. The handler builds it
+// from the RevisionTree + QueryLocks + README render so the template never sees
+// proto types.
+type RepoView struct {
+	Owner             string // cosmetic url segment (repo names are globally unique)
+	Name              string
+	Description       string
+	DefaultBranchName string
+	Rows              []FileRowView
+	Readme            templ.Component // nil when no README.md at the tree root
+	Empty             bool            // fresh/empty default branch
+	ID                string          // 32-hex repository id (for the clone/wire helper)
+	CloneHost         string          // bare host:port of the lore server (scheme stripped)
+	CurrentBranch     string          // resolved branch being viewed (defaults to DefaultBranchName)
+	Branches          []BranchOption  // all branches, for the switcher dropdown
+}
+
+// BranchOption is one entry in the repo-home branch switcher dropdown.
+type BranchOption struct {
+	Name   string
+	URL    templ.SafeURL // /-/{repo}?branch={name}
+	Active bool          // matches the currently viewed branch
+}
+
+// FileRowView is one row in the file table. Locked/LockOwner come from the lock
+// overlay (keyed by path); IsDir drives the icon and sort order.
+type FileRowView struct {
+	Name      string // leaf name shown in the row
+	Path      string // repo-relative path used to build the src link
+	IsDir     bool
+	Locked    bool
+	LockOwner string
+}
+
+// RepoPage renders the repository home in the Forge "Code" layout: a breadcrumb
+// header, a Code/Commits tab bar, then a 2-column grid of the file-table +
+// README on the left and an About card on the right.
+templ RepoPage(repo RepoView) {
+	<section class="repo">
+		@RepoHeader(repo)
+		<div class="tabbar">
+			<span class="tab active"><span class="msi">code</span>Code</span>
+			<a class="tab" href={ commitsURL(repo) }><span class="msi">history</span>Commits</a>
+			<a class="tab" href={ templ.SafeURL("/-/" + repo.Name + "/locks/branch/" + repo.CurrentBranch) }><span class="msi">lock</span>Locks</a>
+		</div>
+		if repo.Empty {
+			@EmptyRepo()
+		} else {
+			<div class="code-layout">
+				<div>
+					<div class="code-toolbar">
+						<details class="branch-picker">
+							<summary class="pillbtn"><span class="msi">account_tree</span>{ repo.CurrentBranch }<span class="msi">expand_more</span></summary>
+							<div class="branch-menu">
+								for _, b := range repo.Branches {
+									if b.Active {
+										<a href={ b.URL } class="active">{ b.Name }</a>
+									} else {
+										<a href={ b.URL }>{ b.Name }</a>
+									}
+								}
+							</div>
+						</details>
+						<span class="spacer"></span>
+						<a class="accentbtn" href={ commitsURL(repo) }><span class="msi">history</span>History</a>
+					</div>
+					@FileTable(repo)
+					if repo.Readme != nil {
+						@ReadmePanel(repo.Readme)
+					}
+				</div>
+				@RepoAside(repo)
+			</div>
+		}
+	</section>
+}
+
+// RepoHeader renders the Forge breadcrumb (owner / name) plus a visibility badge.
+templ RepoHeader(repo RepoView) {
+	<div class="repo-head">
+		<div class="repo-crumb">
+			<span class="msi">menu_book</span>
+			<span>
+				<a href="/">{ repo.Owner }</a>
+				{ " / " }
+				<a class="repo-name-strong" href={ templ.SafeURL("/-/" + repo.Name) }>{ repo.Name }</a>
+			</span>
+			<span class="badge">Private</span>
+		</div>
+	</div>
+}
+
+// FileTable renders the directory listing as a Forge card: a header row naming
+// the branch + item count, then one Forge row per entry.
+templ FileTable(repo RepoView) {
+	<div class="card">
+		<div class="ftable-headrow">
+			<span class="msi" style="font-size:18px;color:var(--text-secondary);">account_tree</span>
+			<strong>{ repo.CurrentBranch }</strong>
+			<span class="frow-spacer"></span>
+			<span>{ strconv.Itoa(len(repo.Rows)) } items</span>
+		</div>
+		for _, row := range repo.Rows {
+			@FileRow(repo, row)
+		}
+	</div>
+}
+
+// FileRow renders a single file/directory entry: a Material icon (folder/file),
+// the name linked to the src view, and a lock badge when the path is locked.
+templ FileRow(repo RepoView, row FileRowView) {
+	<div class="frow">
+		if row.IsDir {
+			<span class="msi icon-dir">folder</span>
+		} else {
+			<span class="msi icon-file">description</span>
+		}
+		<a class="frow-name" href={ srcURL(repo, row) }>{ row.Name }</a>
+		<span class="frow-spacer"></span>
+		if row.Locked {
+			<span class="frow-lock" title={ lockTooltip(row.LockOwner) }><span class="msi">lock</span>{ lockLabel(row.LockOwner) }</span>
+		}
+	</div>
+}
+
+// ReadmePanel renders the rendered README markdown inside a Forge card.
+templ ReadmePanel(readme templ.Component) {
+	<div class="card">
+		<div class="card-head"><span class="msi">description</span>README.md</div>
+		<div class="readme-body markdown-body">
+			@readme
+		</div>
+	</div>
+}
+
+// RepoAside renders the right-hand About card: description + key facts.
+templ RepoAside(repo RepoView) {
+	<aside class="aside">
+		<div class="aside-card">
+			<h3>About</h3>
+			if repo.Description != "" {
+				<p>{ repo.Description }</p>
+			} else {
+				<p class="muted">No description provided.</p>
+			}
+			<div class="aside-meta">
+				<div class="row"><span class="msi">account_tree</span>Default branch <strong>{ repo.DefaultBranchName }</strong></div>
+				<div class="row"><span class="msi">folder</span><strong>{ strconv.Itoa(len(repo.Rows)) }</strong> top-level entries</div>
+			</div>
+		</div>
+		@CloneCard(repo)
+	</aside>
+}
+
+// CloneCard renders the "Clone / set up" helper: the exact lore commands to wire
+// a local folder to this repository (fresh checkout or attach an existing
+// folder) plus the repo id with a copy button. Commands are shown monospace.
+templ CloneCard(repo RepoView) {
+	<div class="aside-card">
+		<h3>Clone / set up</h3>
+		<p class="muted"><small>Fresh checkout into a new folder:</small></p>
+		<code class="clone-cmd">lore clone lore://{ repo.CloneHost }/{ repo.Name }</code>
+		<p class="muted"><small>Attach an existing folder to this repository:</small></p>
+		<code class="clone-cmd">lore repository create lore://{ repo.CloneHost }/{ repo.Name } --id { repo.ID }</code>
+		<p class="muted"><small>Repository ID:</small></p>
+		<div class="clone-id">
+			<code>{ repo.ID }</code>
+			<button class="copy-btn" data-copy={ repo.ID }>Copy</button>
+		</div>
+		// Copy-to-clipboard for the repository ID. Delegated on document and
+		// guarded so it binds exactly once; shares the global flag with the admin
+		// pages so navigating between them never double-binds.
+		<script>
+			if (!window.__arcCopyBound) {
+				window.__arcCopyBound = true;
+				document.addEventListener('click', function (e) {
+					var btn = e.target.closest('.copy-btn');
+					if (!btn) return;
+					navigator.clipboard.writeText(btn.dataset.copy);
+					var prev = btn.textContent;
+					btn.textContent = 'Copied';
+					setTimeout(function () { btn.textContent = prev; }, 1200);
+				});
+			}
+		</script>
+	</div>
+}
+
+// EmptyRepo is the friendly empty state for a fresh/empty default branch.
+templ EmptyRepo() {
+	<div class="card">
+		<div class="lt-empty">This repository is empty — push a first commit to get started.</div>
+	</div>
+}
+
+// NotFound is the 404 body for an unknown repository.
+templ NotFound(name string) {
+	<section class="not-found">
+		<h1>Not found</h1>
+		<p>No repository named <code>{ name }</code>.</p>
+	</section>
+}
+
+// Forbidden is the 403 body shown when the per-repo token exchange fails: the
+// signed-in user is not authorized for this repository, or the auth service is
+// unreachable. detail carries the underlying reason for diagnostics.
+templ Forbidden(name string, detail string) {
+	<section class="not-found">
+		<h1>Not authorized</h1>
+		<p>You are not authorized to access the repository <code>{ name }</code> (token exchange failed).</p>
+		if detail != "" {
+			<p class="muted"><small>{ detail }</small></p>
+		}
+	</section>
+}
+
+// srcURL builds the link to a row's src view:
+// /{owner}/{repo}/src/branch/{branch}/{path}. Directories and files share the
+// same route; Step 5 resolves which to render.
+func srcURL(repo RepoView, row FileRowView) templ.SafeURL {
+	return templ.SafeURL("/" + repo.Owner + "/" + repo.Name + "/src/branch/" + repo.CurrentBranch + "/" + row.Path)
+}
+
+// lockTooltip builds the hover text for a lock badge.
+func lockTooltip(owner string) string {
+	if owner == "" {
+		return "Locked"
+	}
+	return "Locked by " + owner
+}
+
+// lockLabel is the short text shown next to the lock icon on a file row.
+func lockLabel(owner string) string {
+	if owner == "" {
+		return "Locked"
+	}
+	return owner
+}
+
+// commitsURL builds the link to a repo's commit history:
+// /{owner}/{repo}/commits/branch/{branch}.
+func commitsURL(repo RepoView) templ.SafeURL {
+	return templ.SafeURL("/" + repo.Owner + "/" + repo.Name + "/commits/branch/" + repo.CurrentBranch)
+}

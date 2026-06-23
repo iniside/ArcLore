@@ -1,0 +1,15 @@
+package templates
+
+// AdminHeader renders the shared "Administration" page heading + Forge tab bar.
+// active is one of "users", "repos", "grants" and marks the current tab.
+templ AdminHeader(active string) {
+	<div class="page-head">
+		<h1>Administration</h1>
+		<p>Manage users, repositories, and grants for this Lore server.</p>
+	</div>
+	<div class="tabbar">
+		<a class={ "tab", templ.KV("active", active == "users") } href="/admin/users"><span class="msi">group</span>Users</a>
+		<a class={ "tab", templ.KV("active", active == "repos") } href="/admin/repos"><span class="msi">folder</span>Repositories</a>
+		<a class={ "tab", templ.KV("active", active == "grants") } href="/admin/grants"><span class="msi">key</span>Grants</a>
+	</div>
+}
