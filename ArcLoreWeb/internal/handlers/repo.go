@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"sort"
@@ -125,6 +126,7 @@ func (h *Handler) RepoHome(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) lockOverlay(ctx context.Context, branchID [16]byte) map[string]*gen.Lock {
 	locks, err := h.Lore.QueryLocks(ctx, branchID)
 	if err != nil {
+		log.Printf("repo: QueryLocks: %v", err)
 		return nil
 	}
 	byPath := make(map[string]*gen.Lock, len(locks))
@@ -143,6 +145,9 @@ func (h *Handler) lockOverlay(ctx context.Context, branchID [16]byte) map[string
 // switcher still labels correctly rather than erroring the page.
 func (h *Handler) branchOptions(ctx context.Context, repoName, currentBranchName string) []templates.BranchOption {
 	branches, err := h.Lore.ListBranches(ctx)
+	if err != nil {
+		log.Printf("repo: ListBranches: %v", err)
+	}
 	if err != nil || len(branches) == 0 {
 		return []templates.BranchOption{{
 			Name:   currentBranchName,

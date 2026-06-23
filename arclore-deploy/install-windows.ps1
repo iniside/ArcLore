@@ -30,17 +30,28 @@
 .PARAMETER CertPath
     Install from a local copy of arc-lore-auth-tls.crt instead of fetching.
 
+.PARAMETER ExpectedThumbprint
+    Optional SHA1 thumbprint to pin against (case-insensitive, spaces/colons ignored).
+    When provided, the fetched or loaded cert's SHA1 thumbprint is compared against
+    this value BEFORE installing it into the trust store; a mismatch aborts with
+    exit code 1. When omitted (the default), trust-on-first-use (TOFU) applies and
+    the cert is installed without thumbprint verification.
+
 .PARAMETER Uninstall
     Remove the cert from LocalMachine\Root (by thumbprint if -CertPath given,
     else by subject CN containing 'arc-lore-auth').
 
 .EXAMPLE
     .\install-windows.ps1 -Server <your-host>
-    # fetch from the arc-lore-auth host and install
+    # fetch from the arc-lore-auth host and install (TOFU)
 
 .EXAMPLE
     .\install-windows.ps1 -Server lore.lan
-    # fetch from a named host
+    # fetch from a named host (TOFU)
+
+.EXAMPLE
+    .\install-windows.ps1 -Server lore.lan -ExpectedThumbprint 'AB:CD:EF:...'
+    # fetch and verify the thumbprint before installing (pinned)
 
 .EXAMPLE
     .\install-windows.ps1 -CertPath .\arc-lore-auth-tls.crt
@@ -54,6 +65,7 @@ param(
     [string]$Server = '',
     [int]$Port = 8443,
     [string]$CertPath,
+    [string]$ExpectedThumbprint = '',
     [switch]$Uninstall
 )
 
@@ -174,6 +186,21 @@ foreach ($ext in $cert.Extensions) {
 }
 if ($sanText) { Write-Info "Cert SAN     : $sanText" }
 else { Write-Warn "Cert has no SAN extension - the gRPC client requires a matching SAN." }
+
+# -- Optional thumbprint pin (TOFU when ExpectedThumbprint is absent) ----------
+if ($ExpectedThumbprint -ne '') {
+    $normalizeThumb = { param([string]$t) ($t -replace '[\s:]', '').ToUpperInvariant() }
+    $fetchedNorm   = & $normalizeThumb $thumb
+    $expectedNorm  = & $normalizeThumb $ExpectedThumbprint
+    if ($fetchedNorm -ne $expectedNorm) {
+        Write-Err "Thumbprint mismatch — aborting before trust-store import."
+        Write-Err "  Expected : $ExpectedThumbprint"
+        Write-Err "  Got      : $thumb"
+        Write-Warn "Re-run install.sh on the server to confirm the cert has not been rotated."
+        exit 1
+    }
+    Write-Ok "Thumbprint verified: $thumb"
+}
 
 # -- Import (idempotent) -------------------------------------------------------
 $existing = Get-ChildItem $storeLocation | Where-Object { $_.Thumbprint -eq $thumb }

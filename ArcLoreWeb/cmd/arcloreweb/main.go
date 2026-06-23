@@ -53,6 +53,20 @@ func main() {
 	adminHandler := handlers.NewAdmin(mgmtClient, loreClient, sessions)
 
 	router := chi.NewRouter()
+	router.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("X-Content-Type-Options", "nosniff")
+			w.Header().Set("X-Frame-Options", "DENY")
+			w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+			// Strict CSP: all scripts are external (script-src 'self'), so no
+			// inline <script>/on* handlers are permitted — the copy buttons and
+			// destructive-action confirms now live in /static/app.js. style-src
+			// keeps 'unsafe-inline' for templ's inline styles; img-src allows
+			// data: URIs for inline images.
+			w.Header().Set("Content-Security-Policy", "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; frame-ancestors 'none'")
+			next.ServeHTTP(w, r)
+		})
+	})
 	router.Use(middleware.Logger)
 	router.Use(middleware.Recoverer)
 	router.Use(sessions.LoadAndSave)
@@ -101,7 +115,7 @@ func main() {
 		native := &handlers.Native{Mgmt: mgmtClient, Sessions: sessions}
 		router.Get("/auth/login", native.LoginForm)
 		router.With(lt.Middleware(cfg.TrustForwardedFor)).Post("/auth/login", native.LoginSubmit)
-		router.Get("/auth/logout", native.Logout)
+		router.Post("/auth/logout", native.Logout)
 		router.Get("/setup", native.SetupForm)
 		router.With(lt.Middleware(cfg.TrustForwardedFor)).Post("/setup", native.SetupSubmit)
 

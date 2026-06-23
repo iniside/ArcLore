@@ -25,6 +25,7 @@ templ Layout(title string, content templ.Component, username string, isAdmin boo
 			<link rel="stylesheet" href="/static/app.css"/>
 			<link rel="stylesheet" href="/static/chroma.css"/>
 			<script src="/static/htmx.min.js" defer></script>
+			<script src="/static/app.js" defer></script>
 		</head>
 		<body>
 			<nav class="topnav">
@@ -55,7 +56,9 @@ templ Layout(title string, content templ.Component, username string, isAdmin boo
 					<span class="nav-bell msi" title="Notifications">notifications</span>
 					// Avatar doubles as the sign-out control (full navigation clears the
 					// session cookie; the reference hosts logout in an avatar menu).
-					<a href="/auth/logout" class="nav-avatar" title="Sign out">{ Initials(username) }</a>
+					<form method="POST" action="/auth/logout">
+						<button type="submit" class="nav-avatar" title="Sign out">{ Initials(username) }</button>
+					</form>
 				} else {
 					<span class="nav-spacer"></span>
 				}

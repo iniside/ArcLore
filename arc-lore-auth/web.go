@@ -29,6 +29,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"log"
 	"net"
 	"net/http"
 	"strconv"
@@ -708,18 +709,16 @@ func (s *authServer) handleAdminUserCreate(w http.ResponseWriter, r *http.Reques
 	}
 
 	var hash string
-	var addErr error
+	var hashErr error
 	s.withHashSem(func() {
-		var hErr error
-		hash, hErr = HashPassword(password)
-		if hErr != nil {
-			addErr = hErr
-			return
-		}
-		// Admin-page creates are non-admin users.
-		addErr = s.users.AddUser(username, displayName, hash, false)
+		hash, hashErr = HashPassword(password)
 	})
-	if addErr != nil {
+	if hashErr != nil {
+		s.renderAdmin(w, r, "", adminErrMsg("create user", hashErr))
+		return
+	}
+	// Admin-page creates are non-admin users.
+	if addErr := s.users.AddUser(username, displayName, hash, false); addErr != nil {
 		s.renderAdmin(w, r, "", adminErrMsg("create user", addErr))
 		return
 	}
@@ -741,17 +740,15 @@ func (s *authServer) handleAdminUserSetPassword(w http.ResponseWriter, r *http.R
 	}
 
 	var hash string
-	var setErr error
+	var hashErr error
 	s.withHashSem(func() {
-		var hErr error
-		hash, hErr = HashPassword(password)
-		if hErr != nil {
-			setErr = hErr
-			return
-		}
-		setErr = s.users.SetPassword(username, hash)
+		hash, hashErr = HashPassword(password)
 	})
-	if setErr != nil {
+	if hashErr != nil {
+		s.renderAdmin(w, r, "", adminErrMsg("set password", hashErr))
+		return
+	}
+	if setErr := s.users.SetPassword(username, hash); setErr != nil {
 		s.renderAdmin(w, r, "", adminErrMsg("set password", setErr))
 		return
 	}
@@ -765,6 +762,29 @@ func (s *authServer) handleAdminUserDelete(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	username := r.PostFormValue("username")
+
+	u, err := s.users.GetUser(username)
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			s.renderAdmin(w, r, "", adminErrMsg("delete user", ErrUserNotFound))
+			return
+		}
+		log.Printf("web: delete user get user: %v", err)
+		s.renderAdmin(w, r, "", adminErrMsg("delete user", err))
+		return
+	}
+	if u.IsAdmin {
+		n, countErr := s.users.CountAdmins()
+		if countErr != nil {
+			log.Printf("web: delete user count admins: %v", countErr)
+			s.renderAdmin(w, r, "", adminErrMsg("delete user", countErr))
+			return
+		}
+		if n <= 1 {
+			s.renderAdmin(w, r, "", "Cannot delete user: cannot delete the last admin.")
+			return
+		}
+	}
 
 	if err := s.users.DeleteUser(username); err != nil {
 		s.renderAdmin(w, r, "", adminErrMsg("delete user", err))

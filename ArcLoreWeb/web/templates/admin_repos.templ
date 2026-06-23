@@ -86,7 +86,7 @@ templ AdminReposPage(repos []AdminRepoView, errMsg string) {
 						<td>{ repo.DefaultBranchName }</td>
 						<td>{ repo.Creator }</td>
 						<td>
-							<form method="post" action={ templ.SafeURL("/admin/repos/" + repo.ID + "/delete") } onsubmit="return confirm('Delete this repository? This permanently deletes it on the server and removes its access entry. This cannot be undone.')" style="display:inline">
+							<form method="post" action={ templ.SafeURL("/admin/repos/" + repo.ID + "/delete") } data-confirm="Delete this repository? This permanently deletes it on the server and removes its access entry. This cannot be undone." style="display:inline">
 								<button type="submit" class="admin-delete">Delete</button>
 							</form>
 						</td>
@@ -99,21 +99,8 @@ templ AdminReposPage(repos []AdminRepoView, errMsg string) {
 				}
 			</tbody>
 		</table>
-		// Copy-to-clipboard for the repository IDs. Delegated on document and
-		// guarded so it binds exactly once even though htmx re-runs this script
-		// on each #main-content swap. IDs are 32-hex (no escaping concerns).
-		<script>
-			if (!window.__arcCopyBound) {
-				window.__arcCopyBound = true;
-				document.addEventListener('click', function (e) {
-					var btn = e.target.closest('.copy-btn');
-					if (!btn) return;
-					navigator.clipboard.writeText(btn.dataset.copy);
-					var prev = btn.textContent;
-					btn.textContent = 'Copied';
-					setTimeout(function () { btn.textContent = prev; }, 1200);
-				});
-			}
-		</script>
+		// Copy-to-clipboard for the repository IDs is handled by the delegated
+		// listener in /static/app.js (data-copy on each .copy-btn); no inline
+		// script here so the strict CSP (script-src 'self') stays intact.
 	</section>
 }

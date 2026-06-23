@@ -3,10 +3,12 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"html"
 	"io"
 	"log"
 	"net/http"
+	"path"
 	"strings"
 
 	"github.com/a-h/templ"
@@ -217,6 +219,23 @@ func (h *Handler) Raw(w http.ResponseWriter, r *http.Request) {
 		contentType = "application/octet-stream"
 	}
 	w.Header().Set("Content-Type", contentType)
+	// Force attachment download for any MIME that is unsafe to render inline in
+	// the browser (e.g. text/html, image/svg+xml). Only a narrow allowlist of
+	// known-safe types may render inline.
+	mainType := strings.SplitN(contentType, ";", 2)[0]
+	mainType = strings.TrimSpace(mainType)
+	safeInline := map[string]bool{
+		"text/plain":    true,
+		"text/markdown": true,
+		"image/png":     true,
+		"image/jpeg":    true,
+		"image/gif":     true,
+		"image/webp":    true,
+	}
+	if !safeInline[mainType] {
+		leaf := path.Base(subPath)
+		w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", leaf))
+	}
 	if size >= 0 {
 		w.Header().Set("Content-Length", formatInt(size))
 	}

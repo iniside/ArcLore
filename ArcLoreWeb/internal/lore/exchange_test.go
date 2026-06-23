@@ -64,9 +64,9 @@ func TestResourceAuthzTokenFirstCallExchangesAndCaches(t *testing.T) {
 	if calls != 1 {
 		t.Fatalf("ResourceAuthzToken: want exactly 1 exchange, got %d", calls)
 	}
-	entry, ok := c.authzCache[WildcardResource]
+	entry, ok := c.authzCache["identity\x00"+WildcardResource]
 	if !ok || entry.token != "authz-token" {
-		t.Fatalf("ResourceAuthzToken: token not cached for resource, cache=%+v", c.authzCache)
+		t.Fatalf("ResourceAuthzToken: token not cached for identity+resource, cache=%+v", c.authzCache)
 	}
 }
 
@@ -90,6 +90,47 @@ func TestResourceAuthzTokenSecondCallWithinValidityUsesCache(t *testing.T) {
 	}
 	if calls != 1 {
 		t.Fatalf("ResourceAuthzToken: second call within validity must not re-exchange, got %d calls", calls)
+	}
+}
+
+// TestResourceAuthzTokenDistinctIdentitiesDoNotShareCache proves the cache is
+// keyed by identity token, not resource alone: two different identity tokens
+// requesting the SAME resource must each trigger their own exchange and receive
+// their own token (no cross-user cache reuse), while a repeated identity+resource
+// is served from cache.
+func TestResourceAuthzTokenDistinctIdentitiesDoNotShareCache(t *testing.T) {
+	const nowMs int64 = 4_000_000
+	exp := nowMs + 10*time.Minute.Milliseconds()
+	calls := 0
+	// exchangeFn mints a token derived from the identity so we can prove each
+	// caller gets its own, never the other's.
+	c := newTestClient(nowMs, func(_ context.Context, identityToken string, _ string) (string, int64, error) {
+		calls++
+		return "authz-for-" + identityToken, exp, nil
+	})
+
+	cases := []struct {
+		name      string
+		identity  string
+		wantToken string
+		wantCalls int // cumulative exchangeFn calls expected after this step
+	}{
+		{"userA first", "identityA", "authz-for-identityA", 1},
+		{"userB first (same resource, must NOT hit A's entry)", "identityB", "authz-for-identityB", 2},
+		{"userA second (served from cache)", "identityA", "authz-for-identityA", 2},
+		{"userB second (served from cache)", "identityB", "authz-for-identityB", 2},
+	}
+	for _, tc := range cases {
+		token, err := c.ResourceAuthzToken(context.Background(), tc.identity, WildcardResource)
+		if err != nil {
+			t.Fatalf("%s: unexpected error: %v", tc.name, err)
+		}
+		if token != tc.wantToken {
+			t.Fatalf("%s: got token %q, want %q", tc.name, token, tc.wantToken)
+		}
+		if calls != tc.wantCalls {
+			t.Fatalf("%s: got %d cumulative exchanges, want %d", tc.name, calls, tc.wantCalls)
+		}
 	}
 }
 

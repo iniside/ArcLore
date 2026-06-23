@@ -57,7 +57,7 @@ func Layout(title string, content templ.Component, username string, isAdmin bool
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"stylesheet\" href=\"/static/app.css\"><link rel=\"stylesheet\" href=\"/static/chroma.css\"><script src=\"/static/htmx.min.js\" defer></script></head><body><nav class=\"topnav\"><a href=\"/\" class=\"brand\" hx-get=\"/\" hx-target=\"#main-content\" hx-push-url=\"true\"><span class=\"brand-logo\"><span class=\"msi\">deployed_code</span></span> <span class=\"brand-name\">ArcLore</span></a> ")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</title><link rel=\"stylesheet\" href=\"/static/app.css\"><link rel=\"stylesheet\" href=\"/static/chroma.css\"><script src=\"/static/htmx.min.js\" defer></script><script src=\"/static/app.js\" defer></script></head><body><nav class=\"topnav\"><a href=\"/\" class=\"brand\" hx-get=\"/\" hx-target=\"#main-content\" hx-push-url=\"true\"><span class=\"brand-logo\"><span class=\"msi\">deployed_code</span></span> <span class=\"brand-name\">ArcLore</span></a> ")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -134,20 +134,20 @@ func Layout(title string, content templ.Component, username string, isAdmin bool
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><span class=\"nav-bell msi\" title=\"Notifications\">notifications</span>  <a href=\"/auth/logout\" class=\"nav-avatar\" title=\"Sign out\">")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</div><span class=\"nav-bell msi\" title=\"Notifications\">notifications</span>  <form method=\"POST\" action=\"/auth/logout\"><button type=\"submit\" class=\"nav-avatar\" title=\"Sign out\">")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 string
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(Initials(username))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout.templ`, Line: 58, Col: 84}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/layout.templ`, Line: 60, Col: 84}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

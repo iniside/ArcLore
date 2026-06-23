@@ -549,7 +549,7 @@ func AdminGrantsPage(members []AdminGrantsMember, resources []AdminGrantsResourc
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</td><td><form method=\"post\" action=\"/admin/resources/remove\" onsubmit=\"return confirm('Remove this access entry? This removes the auth row only. If the repository still exists on the server it becomes an UNLISTED ORPHAN — to delete a live repo use Delete on the Repositories tab.')\" style=\"display:inline\"><input type=\"hidden\" name=\"resource_id\" value=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "</td><td><form method=\"post\" action=\"/admin/resources/remove\" data-confirm=\"Remove this access entry? This removes the auth row only. If the repository still exists on the server it becomes an UNLISTED ORPHAN — to delete a live repo use Delete on the Repositories tab.\" style=\"display:inline\"><input type=\"hidden\" name=\"resource_id\" value=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}

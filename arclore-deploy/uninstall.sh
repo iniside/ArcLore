@@ -65,7 +65,7 @@ while [[ $# -gt 0 ]]; do
         --purge) PURGE=1; shift ;;
         -h|--help)
             echo "Usage: sudo ./uninstall.sh [--purge]"
-            echo "  --purge   Also delete DB, RSA key, issue secret, and TLS cert/key."
+            echo "  --purge   Also delete DB, RSA key, issue secret, TLS cert/key, and session-secret."
             exit 0 ;;
         *) die "Unknown argument: $1" ;;
     esac
@@ -115,13 +115,16 @@ for f in "$OPT_AUTH_BIN" "$OPT_AUTH_CONFIG" "${OPT_AUTH_CONFIG}.bak" \
          "$LEGACY_AUTH_BIN" "$LEGACY_AUTH_CONFIG" "${LEGACY_AUTH_CONFIG}.bak"; do
     if [[ -e "$f" ]]; then rm -f "$f"; REMOVED+=("$f"); fi
 done
-if [[ -d "$OPT_WEB_DIR" ]]; then rm -rf "$OPT_WEB_DIR"; REMOVED+=("$OPT_WEB_DIR/"); fi
+if [[ -d "$OPT_WEB_DIR" ]]; then
+    [[ "$OPT_WEB_DIR" =~ ^/opt/ ]] || { err "Refusing rm -rf $OPT_WEB_DIR (path does not start with /opt/)"; exit 1; }
+    rm -rf "$OPT_WEB_DIR"; REMOVED+=("$OPT_WEB_DIR/")
+fi
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Data prompt (default KEEP)
 # ──────────────────────────────────────────────────────────────────────────────
 hdr "Data (DB / keys / cert)"
-DATA_PATHS=("$OPT_AUTH_DB" "$OPT_AUTH_RSA_KEY" "$OPT_AUTH_SECRET" "$OPT_AUTH_CERT" "$OPT_AUTH_TLS_KEY" "$LEGACY_RSA_DIR")
+DATA_PATHS=("$OPT_AUTH_DB" "$OPT_AUTH_RSA_KEY" "$OPT_AUTH_SECRET" "$OPT_AUTH_CERT" "$OPT_AUTH_TLS_KEY" "$LEGACY_RSA_DIR" "/etc/arcloreweb/session-secret.env")
 
 WIPE=0
 if [[ "$PURGE" == "1" ]]; then
@@ -130,7 +133,7 @@ if [[ "$PURGE" == "1" ]]; then
 else
     warn "Keeping data lets a reinstall preserve users + signing key (tokens stay valid)."
     warn "Wiping removes: ${DATA_PATHS[*]}"
-    if confirm "Wipe ALL data (DB, RSA signing key, issue secret, TLS cert/key)?" "N"; then
+    if confirm "Wipe ALL data (DB, RSA signing key, issue secret, TLS cert/key, session-secret)?" "N"; then
         read -r -p "This is destructive. Type 'yes' to wipe: " __w || true
         [[ "$__w" == "yes" ]] && WIPE=1
     fi
@@ -140,9 +143,15 @@ if [[ "$WIPE" == "1" ]]; then
     for p in "${DATA_PATHS[@]}"; do
         if [[ -e "$p" ]]; then rm -rf "$p"; REMOVED+=("$p"); fi
     done
+    # Remove the session-secret dir if now empty.
+    if [[ -d "/etc/arcloreweb" ]] && [[ -z "$(ls -A "/etc/arcloreweb" 2>/dev/null)" ]]; then
+        rmdir "/etc/arcloreweb" 2>/dev/null || true
+        REMOVED+=("/etc/arcloreweb/")
+    fi
     # Drop the now-empty app dir on a full purge.
-    if [[ -d "$OPT_AUTH_DIR" ]] && rmdir "$OPT_AUTH_DIR" 2>/dev/null; then
-        REMOVED+=("$OPT_AUTH_DIR/")
+    if [[ -d "$OPT_AUTH_DIR" ]]; then
+        [[ "$OPT_AUTH_DIR" =~ ^/opt/ ]] || { err "Refusing rm -rf $OPT_AUTH_DIR (path does not start with /opt/)"; exit 1; }
+        rmdir "$OPT_AUTH_DIR" 2>/dev/null && REMOVED+=("$OPT_AUTH_DIR/") || true
     fi
     ok "Data wiped."
 else

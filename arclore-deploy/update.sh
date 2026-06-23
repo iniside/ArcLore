@@ -210,8 +210,9 @@ fi
 # ──────────────────────────────────────────────────────────────────────────────
 if [[ "$DO_AUTH" == "1" ]]; then
     hdr "Updating arc-lore-auth"
-    install -m 0755 "$AUTH_SRC/arc-lore-auth-linux-amd64" "$OPT_AUTH_BIN"
-    ok "Installed $OPT_AUTH_BIN"
+    install -m 0750 "$AUTH_SRC/arc-lore-auth-linux-amd64" "$OPT_AUTH_BIN"
+    chown root:arc-lore-auth "$OPT_AUTH_BIN"
+    ok "Installed $OPT_AUTH_BIN (root:arc-lore-auth 0750)"
     log "systemctl restart arc-lore-auth.service"
     systemctl restart arc-lore-auth.service
 
@@ -233,8 +234,9 @@ fi
 
 if [[ "$DO_WEB" == "1" ]]; then
     hdr "Updating ArcLoreWeb"
-    install -m 0755 "$WEB_SRC/arcloreweb" "$OPT_WEB_BIN"
-    ok "Installed $OPT_WEB_BIN"
+    install -m 0750 "$WEB_SRC/arcloreweb" "$OPT_WEB_BIN"
+    chown root:arcloreweb "$OPT_WEB_BIN"
+    ok "Installed $OPT_WEB_BIN (root:arcloreweb 0750)"
     log "systemctl restart arcloreweb.service"
     systemctl restart arcloreweb.service
 

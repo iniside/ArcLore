@@ -744,7 +744,7 @@ func CloneCard(repo RepoView) templ.Component {
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\">Copy</button></div><script>\n\t\t\tif (!window.__arcCopyBound) {\n\t\t\t\twindow.__arcCopyBound = true;\n\t\t\t\tdocument.addEventListener('click', function (e) {\n\t\t\t\t\tvar btn = e.target.closest('.copy-btn');\n\t\t\t\t\tif (!btn) return;\n\t\t\t\t\tnavigator.clipboard.writeText(btn.dataset.copy);\n\t\t\t\t\tvar prev = btn.textContent;\n\t\t\t\t\tbtn.textContent = 'Copied';\n\t\t\t\t\tsetTimeout(function () { btn.textContent = prev; }, 1200);\n\t\t\t\t});\n\t\t\t}\n\t\t</script></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 54, "\">Copy</button></div></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
@@ -811,7 +811,7 @@ func NotFound(name string) templ.Component {
 		var templ_7745c5c3_Var38 string
 		templ_7745c5c3_Var38, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/repo.templ`, Line: 204, Col: 37}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/repo.templ`, Line: 191, Col: 37}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var38))
 		if templ_7745c5c3_Err != nil {
@@ -856,7 +856,7 @@ func Forbidden(name string, detail string) templ.Component {
 		var templ_7745c5c3_Var40 string
 		templ_7745c5c3_Var40, templ_7745c5c3_Err = templ.JoinStringErrs(name)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/repo.templ`, Line: 214, Col: 65}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/repo.templ`, Line: 201, Col: 65}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var40))
 		if templ_7745c5c3_Err != nil {
@@ -874,7 +874,7 @@ func Forbidden(name string, detail string) templ.Component {
 			var templ_7745c5c3_Var41 string
 			templ_7745c5c3_Var41, templ_7745c5c3_Err = templ.JoinStringErrs(detail)
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/repo.templ`, Line: 216, Col: 35}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/repo.templ`, Line: 203, Col: 35}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var41))
 			if templ_7745c5c3_Err != nil {

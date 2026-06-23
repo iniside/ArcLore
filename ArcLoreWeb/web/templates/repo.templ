@@ -171,22 +171,9 @@ templ CloneCard(repo RepoView) {
 			<code>{ repo.ID }</code>
 			<button class="copy-btn" data-copy={ repo.ID }>Copy</button>
 		</div>
-		// Copy-to-clipboard for the repository ID. Delegated on document and
-		// guarded so it binds exactly once; shares the global flag with the admin
-		// pages so navigating between them never double-binds.
-		<script>
-			if (!window.__arcCopyBound) {
-				window.__arcCopyBound = true;
-				document.addEventListener('click', function (e) {
-					var btn = e.target.closest('.copy-btn');
-					if (!btn) return;
-					navigator.clipboard.writeText(btn.dataset.copy);
-					var prev = btn.textContent;
-					btn.textContent = 'Copied';
-					setTimeout(function () { btn.textContent = prev; }, 1200);
-				});
-			}
-		</script>
+		// Copy-to-clipboard is handled by the delegated listener in
+		// /static/app.js (data-copy on the .copy-btn); no inline script here so
+		// the strict CSP (script-src 'self') stays intact.
 	</div>
 }
 

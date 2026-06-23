@@ -432,17 +432,15 @@ func (s *authServer) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 
 	// Derive the hash ONLY inside the argon2 semaphore — never under a Store call.
 	var hash string
-	var addErr error
+	var hashErr error
 	s.withHashSem(func() {
-		var hErr error
-		hash, hErr = HashPassword(req.Password)
-		if hErr != nil {
-			addErr = hErr
-			return
-		}
-		addErr = s.users.AddUser(norm, norm, hash, false)
+		hash, hashErr = HashPassword(req.Password)
 	})
-	if addErr != nil {
+	if hashErr != nil {
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if addErr := s.users.AddUser(norm, norm, hash, false); addErr != nil {
 		switch {
 		case errors.Is(addErr, ErrUserExists):
 			writeAPIError(w, http.StatusConflict, "username already taken")
@@ -505,8 +503,11 @@ func (s *authServer) handleAPIMePassword(w http.ResponseWriter, r *http.Request,
 	}
 
 	// Capture status+msg from inside the sem; 0 status means success.
+	// VerifyPassword and HashPassword both run inside the sem; SetPassword (DB
+	// write) runs OUTSIDE — the argon2/DB-ordering invariant.
 	var status int
 	var msg string
+	var newHash string
 	s.withHashSem(func() {
 		if !VerifyPassword(hash, req.Current) {
 			status, msg = http.StatusUnauthorized, "current password incorrect"
@@ -516,19 +517,20 @@ func (s *authServer) handleAPIMePassword(w http.ResponseWriter, r *http.Request,
 			status, msg = http.StatusBadRequest, "new password must differ from current"
 			return
 		}
-		newHash, hErr := HashPassword(req.New)
+		var hErr error
+		newHash, hErr = HashPassword(req.New)
 		if hErr != nil {
 			status, msg = http.StatusInternalServerError, "could not hash password"
-			return
-		}
-		if setErr := s.users.SetPassword(name, newHash); setErr != nil {
-			log.Printf("api: me password set: %v", setErr)
-			status, msg = http.StatusInternalServerError, "internal error"
 			return
 		}
 	})
 	if status != 0 {
 		writeAPIError(w, status, msg)
+		return
+	}
+	if setErr := s.users.SetPassword(name, newHash); setErr != nil {
+		log.Printf("api: me password set: %v", setErr)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"updated": name})
@@ -577,17 +579,15 @@ func (s *authServer) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request
 	}
 
 	var hash string
-	var addErr error
+	var hashErr error
 	s.withHashSem(func() {
-		var hErr error
-		hash, hErr = HashPassword(req.Password)
-		if hErr != nil {
-			addErr = hErr
-			return
-		}
-		addErr = s.users.AddUser(req.Username, req.DisplayName, hash, req.IsAdmin)
+		hash, hashErr = HashPassword(req.Password)
 	})
-	if addErr != nil {
+	if hashErr != nil {
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if addErr := s.users.AddUser(req.Username, req.DisplayName, hash, req.IsAdmin); addErr != nil {
 		switch {
 		case errors.Is(addErr, ErrUserExists):
 			writeAPIError(w, http.StatusConflict, "user already exists")
@@ -679,17 +679,15 @@ func (s *authServer) handleAPIUsersSetPassword(w http.ResponseWriter, r *http.Re
 	}
 
 	var hash string
-	var setErr error
+	var hashErr error
 	s.withHashSem(func() {
-		var hErr error
-		hash, hErr = HashPassword(req.Password)
-		if hErr != nil {
-			setErr = hErr
-			return
-		}
-		setErr = s.users.SetPassword(name, hash)
+		hash, hashErr = HashPassword(req.Password)
 	})
-	if setErr != nil {
+	if hashErr != nil {
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
+		return
+	}
+	if setErr := s.users.SetPassword(name, hash); setErr != nil {
 		if errors.Is(setErr, ErrUserNotFound) {
 			writeAPIError(w, http.StatusNotFound, "user not found")
 			return

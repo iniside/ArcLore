@@ -233,7 +233,7 @@ templ AdminGrantsPage(members []AdminGrantsMember, resources []AdminGrantsResour
 						<td><code>{ res.ResourceID }</code></td>
 						<td>{ res.Name }</td>
 						<td>
-							<form method="post" action="/admin/resources/remove" onsubmit="return confirm('Remove this access entry? This removes the auth row only. If the repository still exists on the server it becomes an UNLISTED ORPHAN — to delete a live repo use Delete on the Repositories tab.')" style="display:inline">
+							<form method="post" action="/admin/resources/remove" data-confirm="Remove this access entry? This removes the auth row only. If the repository still exists on the server it becomes an UNLISTED ORPHAN — to delete a live repo use Delete on the Repositories tab." style="display:inline">
 								<input type="hidden" name="resource_id" value={ res.ResourceID }/>
 								<button type="submit" class="admin-delete">Remove</button>
 							</form>

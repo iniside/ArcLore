@@ -283,8 +283,19 @@ func (c *Client) ResourceAuthzToken(
 	nowMs := c.nowMs()
 	skewMs := expirySkew.Milliseconds()
 
+	// Key the cache on the identity token, not the resource alone: the *Client
+	// is a process-wide singleton, so a resource-only key would let user B's
+	// request hit a cache entry minted from user A's identity token and ride A's
+	// grants — a horizontal privilege-escalation hole. We deliberately key on
+	// the identity token rather than its `sub`: the token changes on every login
+	// / refresh / token_version bump, so a changed principal OR changed grants
+	// both yield a new key and force a fresh exchange — no stale-grant token can
+	// ever be served. identityToken is guaranteed non-empty here (the empty
+	// auth-disabled path short-circuits above).
+	cacheKey := identityToken + "\x00" + resource
+
 	c.authzMu.Lock()
-	cached, ok := c.authzCache[resource]
+	cached, ok := c.authzCache[cacheKey]
 	c.authzMu.Unlock()
 	if ok && nowMs < cached.expMs-skewMs {
 		return cached.token, nil
@@ -299,7 +310,13 @@ func (c *Client) ResourceAuthzToken(
 	if c.authzCache == nil {
 		c.authzCache = make(map[string]authzEntry)
 	}
-	c.authzCache[resource] = authzEntry{token: token, expMs: expMs}
+	// Prune lapsed entries to bound map growth across many identity tokens.
+	for k, e := range c.authzCache {
+		if e.expMs < nowMs {
+			delete(c.authzCache, k)
+		}
+	}
+	c.authzCache[cacheKey] = authzEntry{token: token, expMs: expMs}
 	c.authzMu.Unlock()
 
 	return token, nil

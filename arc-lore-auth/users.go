@@ -112,6 +112,13 @@ func VerifyPassword(stored, pw string) bool {
 	if _, err := fmt.Sscanf(parts[3], "m=%d,t=%d,p=%d", &memory, &timeCost, &parallelism); err != nil {
 		return false
 	}
+	// Reject hashes whose work factors are below the current floor. A
+	// DB-write attacker could store a trivially-cheap hash (m=1,t=1,p=1)
+	// and then log in without paying the real argon2 cost. Only hashes
+	// minted at or above the floor constants are accepted.
+	if memory < argon2idMemory || timeCost < argon2idTime || parallelism < argon2idParallelism {
+		return false
+	}
 
 	salt, err := rawStdEncoding.DecodeString(parts[4])
 	if err != nil {

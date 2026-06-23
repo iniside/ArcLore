@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/alexedwards/scs/v2"
 )
@@ -29,6 +30,11 @@ func RequireAuth(sessions *scs.SessionManager) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			sub := sessions.GetString(r.Context(), sessionKeyUserSub)
 			if sub == "" {
+				http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+				return
+			}
+			if exp := sessions.GetInt64(r.Context(), sessionKeyTokenExpiry); exp != 0 && time.Now().Unix() > exp {
+				_ = sessions.Destroy(r.Context())
 				http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
 				return
 			}

@@ -391,7 +391,7 @@ else
     # Hash the admin_secret via the binary (argon2id PHC) so the plaintext never
     # lands in config.toml.  The binary is already installed above, so the hash
     # command is available here.  The plaintext is still shown in the summary.
-    ADMIN_SECRET_HASH="$("$OPT_AUTH_BIN" hash-secret "$ADMIN_SECRET")"
+    ADMIN_SECRET_HASH="$(printf '%s' "$ADMIN_SECRET" | "$OPT_AUTH_BIN" hash-secret)"
 
     # Generate from the template, stripping any uncommented assignment of the keys
     # we own so our values win regardless of template drift, then append our block.

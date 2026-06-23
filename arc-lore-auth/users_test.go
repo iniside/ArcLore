@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"golang.org/x/crypto/argon2"
 )
 
 // ── test helpers ──────────────────────────────────────────────────────────────
@@ -132,6 +134,62 @@ func TestVerifyMalformedRecords(t *testing.T) {
 				t.Errorf("VerifyPassword(%q, ...) = true; want false", tc.stored)
 			}
 		})
+	}
+}
+
+// TestVerifyArgon2WorkFactorFloor ensures VerifyPassword rejects hashes whose
+// stored work factors are below the floor constants, and accepts hashes at or
+// above the floor. This guards against a DB-write attacker storing a cheap hash.
+func TestVerifyArgon2WorkFactorFloor(t *testing.T) {
+	const pw = "correctpassword1"
+
+	// buildPHC constructs a valid PHC string for the given params and password.
+	buildPHC := func(m, ti uint32, p uint8) string {
+		salt := []byte("0123456789abcdef") // fixed 16-byte salt for determinism
+		key := argon2.IDKey([]byte(pw), salt, ti, m, p, argon2idKeyLen)
+		return fmt.Sprintf("$argon2id$v=19$m=%d,t=%d,p=%d$%s$%s",
+			m, ti, p,
+			rawStdEncoding.EncodeToString(salt),
+			rawStdEncoding.EncodeToString(key),
+		)
+	}
+
+	// Sub-floor hashes must be rejected (correct password, but cheap params).
+	subFloor := []struct {
+		name string
+		hash string
+	}{
+		{"memory_too_low", buildPHC(argon2idMemory-1, argon2idTime, argon2idParallelism)},
+		{"time_too_low", buildPHC(argon2idMemory, argon2idTime-1, argon2idParallelism)},
+		{"parallelism_too_low", buildPHC(argon2idMemory, argon2idTime, argon2idParallelism-1)},
+		{"all_one", buildPHC(1, 1, 1)},
+	}
+	for _, tc := range subFloor {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			if VerifyPassword(tc.hash, pw) {
+				t.Errorf("VerifyPassword with sub-floor params (%s) returned true; want false", tc.name)
+			}
+		})
+	}
+
+	// At-floor hash with the correct password must verify.
+	atFloor := buildPHC(argon2idMemory, argon2idTime, argon2idParallelism)
+	if !VerifyPassword(atFloor, pw) {
+		t.Error("VerifyPassword with at-floor params returned false; want true")
+	}
+
+	// dummyArgon2Hash uses m=65536,t=3,p=2 — exactly at the floor. Confirm it
+	// is not rejected by the floor check: VerifyPassword must return false only
+	// because of the wrong password, not because the params are too cheap.
+	// We do this by verifying that a hash built with the exact same params AND
+	// the correct password passes — proving the floor does not block at-floor hashes.
+	if VerifyPassword(dummyArgon2Hash, "wrongpassword") {
+		t.Error("dummyArgon2Hash verified with wrong password; should never happen")
+	}
+	// atFloor uses the same params as dummyArgon2Hash; it must verify correctly.
+	if !VerifyPassword(atFloor, pw) {
+		t.Error("at-floor hash (same params as dummyArgon2Hash) rejected; floor must not block >=floor")
 	}
 }
 

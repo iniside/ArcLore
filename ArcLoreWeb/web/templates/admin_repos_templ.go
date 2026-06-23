@@ -179,7 +179,7 @@ func AdminReposPage(repos []AdminRepoView, errMsg string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" onsubmit=\"return confirm('Delete this repository? This permanently deletes it on the server and removes its access entry. This cannot be undone.')\" style=\"display:inline\"><button type=\"submit\" class=\"admin-delete\">Delete</button></form></td></tr>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\" data-confirm=\"Delete this repository? This permanently deletes it on the server and removes its access entry. This cannot be undone.\" style=\"display:inline\"><button type=\"submit\" class=\"admin-delete\">Delete</button></form></td></tr>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -190,7 +190,7 @@ func AdminReposPage(repos []AdminRepoView, errMsg string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</tbody></table><script>\n\t\t\tif (!window.__arcCopyBound) {\n\t\t\t\twindow.__arcCopyBound = true;\n\t\t\t\tdocument.addEventListener('click', function (e) {\n\t\t\t\t\tvar btn = e.target.closest('.copy-btn');\n\t\t\t\t\tif (!btn) return;\n\t\t\t\t\tnavigator.clipboard.writeText(btn.dataset.copy);\n\t\t\t\t\tvar prev = btn.textContent;\n\t\t\t\t\tbtn.textContent = 'Copied';\n\t\t\t\t\tsetTimeout(function () { btn.textContent = prev; }, 1200);\n\t\t\t\t});\n\t\t\t}\n\t\t</script></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</tbody></table></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
