@@ -170,13 +170,16 @@ func (c *Client) authClientForURL(ctx context.Context) (gen.UrcAuthApiClient, er
 		return nil, err
 	}
 
+	// Fast path: return the cached client if a prior caller already dialed.
 	c.authMu.Lock()
-	defer c.authMu.Unlock()
-
-	if c.authClient != nil {
-		return c.authClient, nil
+	existing := c.authClient
+	c.authMu.Unlock()
+	if existing != nil {
+		return existing, nil
 	}
 
+	// Compute the dial target and dial OUTSIDE authMu so a slow grpc.NewClient
+	// never blocks other auth callers.
 	target, err := authURLToTarget(authURL)
 	if err != nil {
 		return nil, err
@@ -194,6 +197,14 @@ func (c *Client) authClientForURL(ctx context.Context) (gen.UrcAuthApiClient, er
 		return nil, fmt.Errorf("lore: dial auth %q: %w", target, err)
 	}
 
+	// Re-check under the lock: a concurrent caller may have stored a client
+	// while we were dialing. If so, close our redundant conn and use theirs.
+	c.authMu.Lock()
+	defer c.authMu.Unlock()
+	if c.authClient != nil {
+		conn.Close()
+		return c.authClient, nil
+	}
 	c.authConn = conn
 	c.authClient = gen.NewUrcAuthApiClient(conn)
 	return c.authClient, nil

@@ -79,8 +79,9 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o arc-lore-auth-linux-amd64 .
 Copy the binary to the server and make it executable:
 
 ```sh
-sudo cp arc-lore-auth-linux-amd64 /opt/
-sudo chmod +x /opt/arc-lore-auth-linux-amd64
+sudo mkdir -p /opt/arc-lore-auth
+sudo cp arc-lore-auth-linux-amd64 /opt/arc-lore-auth/
+sudo chmod +x /opt/arc-lore-auth/arc-lore-auth-linux-amd64
 ```
 
 ---
@@ -90,8 +91,8 @@ sudo chmod +x /opt/arc-lore-auth-linux-amd64
 Copy `config.toml` from the repo and edit it:
 
 ```sh
-sudo cp config.toml /opt/config.toml
-sudo $EDITOR /opt/config.toml
+sudo cp config.toml /opt/arc-lore-auth/config.toml
+sudo $EDITOR /opt/arc-lore-auth/config.toml
 ```
 
 **Required fields** — no defaults, the daemon refuses to start without them:
@@ -103,11 +104,11 @@ sudo $EDITOR /opt/config.toml
 | `web_base_url` | Externally-reachable HTTP base URL the artist's **browser** can reach.  Used to build the browser `login_url` in `StartAuthSession`.  NOT a second listener. | `"http://AUTHHOST:8080"` |
 | `admin_secret` | Long random string to unlock `/admin`.  Empty → `/admin` returns 503. | `$(openssl rand -hex 32)` |
 
-The systemd unit runs with `WorkingDirectory=/opt`, so relative paths in `config.toml`
-resolve to `/opt` automatically. TLS cert/key and `users_file` resolve correctly without
-pinning. The RSA signing key and issue secret default to `~/.arc-lore-auth/` (root's home
-`/root/.arc-lore-auth/`) — leave them unpinned to match the working deployment, or pin
-them explicitly if you prefer everything in `/opt` (see "Hardening" below).
+The systemd unit runs with `WorkingDirectory=/opt/arc-lore-auth`, so relative paths in
+`config.toml` resolve to `/opt/arc-lore-auth` automatically. TLS cert/key and `users_file`
+resolve correctly without pinning. Pin `key_path` explicitly to keep the signing key under
+`/opt/arc-lore-auth` (required for `ProtectHome=true` in the reference unit — see the
+minimal config snippet below).
 
 **Listener addresses** (keep these as-is for a production install):
 
@@ -124,9 +125,9 @@ audience      = "LOREHOST"
 web_base_url  = "http://AUTHHOST:8080"
 admin_secret  = "<output of: openssl rand -hex 32>"
 
-# TLS cert/key and users_file default to ./  (resolved from WorkingDirectory=/opt)
-# key_path defaults to /root/.arc-lore-auth/ — leave unpinned
-# unless you want ProtectHome hardening (see below).
+# TLS cert/key and users_file default to ./  (resolved from WorkingDirectory=/opt/arc-lore-auth)
+# Pin key_path so the signing key stays under /opt/arc-lore-auth (required by ProtectHome=true).
+key_path      = "/opt/arc-lore-auth/arc-lore-auth.key"
 
 web_listen_addr  = "0.0.0.0:8080"
 grpc_listen_addr = "0.0.0.0:8443"
@@ -163,9 +164,9 @@ ss -ltnp | grep -E ':8080|:8443'
 **What happens on first start:**
 
 1. The RSA-2048 JWT signing key is generated and written to `key_path`
-   (default `/root/.arc-lore-auth/arc-lore-auth.key`).
+   (pinned to `/opt/arc-lore-auth/arc-lore-auth.key` in the minimal config above).
 2. The TLS cert is generated (self-signed, `~825-day validity`) and written to
-   `tls_cert_path` (default `/opt/arc-lore-auth-tls.crt`).  The exact `certutil` install
+   `tls_cert_path` (default `/opt/arc-lore-auth/arc-lore-auth-tls.crt`).  The exact `certutil` install
    command is printed to the journal too.
 3. Both listeners start (`web_listen_addr` HTTP, `grpc_listen_addr` TLS gRPC).
 
@@ -179,30 +180,21 @@ Note the **cert path** from the journal output — you will need it in step 8.
 
 ## 5a. Hardening (optional)
 
-The primary deployment above runs as **root** with `WorkingDirectory=/opt`. That is the
-simplest path and what the working server uses. If you later want stronger isolation,
-here is the dedicated-`lore`-user variant:
+The primary deployment above runs as **root** with `WorkingDirectory=/opt/arc-lore-auth`
+and `ProtectHome=true`. If you want stronger process isolation with a dedicated service
+account, here is the dedicated-`lore`-user variant:
 
-1. **Create the service account and a dedicated directory:**
+1. **Create the service account** and set ownership of the existing directory:
 
    ```sh
    sudo useradd --system --no-create-home --shell /usr/sbin/nologin lore
-   sudo mkdir -p /opt/arc-lore-auth
-   sudo chown lore:lore /opt/arc-lore-auth
-   ```
-
-2. **Copy the binary and config into the dedicated directory:**
-
-   ```sh
-   sudo cp /opt/arc-lore-auth-linux-amd64 /opt/arc-lore-auth/
-   sudo cp /opt/config.toml /opt/arc-lore-auth/config.toml
    sudo chown -R lore:lore /opt/arc-lore-auth
    ```
 
-3. **Pin all paths in `/opt/arc-lore-auth/config.toml`** so they resolve under the new
-   directory — the `lore` user's home (`/nonexistent` or wherever `useradd` placed it)
-   would otherwise give `key_path` a different home, regenerating the signing key and
-   invalidating all existing tokens:
+2. **Ensure all paths in `/opt/arc-lore-auth/config.toml` are pinned** so they resolve
+   under `/opt/arc-lore-auth` — the `lore` user's home (`/nonexistent`) would otherwise
+   give `key_path` a different home, regenerating the signing key and invalidating all
+   existing tokens:
 
    ```toml
    tls_cert_path = "/opt/arc-lore-auth/arc-lore-auth-tls.crt"
@@ -211,8 +203,8 @@ here is the dedicated-`lore`-user variant:
    users_file    = "/opt/arc-lore-auth/arc-lore-users.json"
    ```
 
-4. **Edit the unit** (`/etc/systemd/system/arc-lore-auth.service`) to use the hardened
-   paths, add `User=lore` / `Group=lore`, and re-enable `ProtectHome=true`:
+3. **Edit the installed unit** (`/etc/systemd/system/arc-lore-auth.service`) to add
+   `User=lore` / `Group=lore` (paths and `ProtectHome=true` are already set):
 
    ```ini
    [Service]
@@ -223,10 +215,10 @@ here is the dedicated-`lore`-user variant:
    ProtectHome=true
    ```
 
-5. `sudo systemctl daemon-reload && sudo systemctl restart arc-lore-auth`
+4. `sudo systemctl daemon-reload && sudo systemctl restart arc-lore-auth`
 
    Verify the **kid** in the journal matches the old value — if it changed, the signing
-   key was regenerated (check that all five paths in step 3 were pinned correctly).
+   key was regenerated (check that all paths in step 2 were pinned correctly).
 
 ---
 
@@ -282,8 +274,8 @@ sudo systemctl restart loreserver
 **Via CLI** (daemon need not be running):
 
 ```sh
-/opt/arc-lore-auth-linux-amd64 \
-  -config /opt/config.toml \
+/opt/arc-lore-auth/arc-lore-auth-linux-amd64 \
+  -config /opt/arc-lore-auth/config.toml \
   useradd lukasz
 # Prompts: "Password:" then "Confirm password:" — no echo
 # Optional display name: useradd --display-name "Lukasz Baran" lukasz
@@ -307,7 +299,7 @@ The lore editor plugin verifies the gRPC TLS certificate against the OS trust st
 There is no skip-verify option; `lore.dll` enforces it.  The QUIC/HTTP skip-verify
 setting does **not** apply here.
 
-Copy `/opt/arc-lore-auth-tls.crt` to each Windows editor host, then in
+Copy `/opt/arc-lore-auth/arc-lore-auth-tls.crt` to each Windows editor host, then in
 an **elevated** PowerShell:
 
 ```powershell
@@ -364,8 +356,8 @@ Quick CLI verification:
 
 ```sh
 # 1. Mint an authn token offline (no daemon needed)
-/opt/arc-lore-auth-linux-amd64 \
-  -config /opt/config.toml \
+/opt/arc-lore-auth/arc-lore-auth-linux-amd64 \
+  -config /opt/arc-lore-auth/config.toml \
   mint --user lukasz
 
 # 2. Paste the printed JWT into: ArcLore panel → Login → token type "lore" → Login
@@ -384,8 +376,8 @@ expiry at ~825 days):
 
 ```sh
 sudo systemctl stop arc-lore-auth
-sudo rm /opt/arc-lore-auth-tls.crt \
-        /opt/arc-lore-auth-tls.key
+sudo rm /opt/arc-lore-auth/arc-lore-auth-tls.crt \
+        /opt/arc-lore-auth/arc-lore-auth-tls.key
 sudo systemctl start arc-lore-auth
 # Check journal for new certutil command, then re-import on all editor hosts
 sudo journalctl -u arc-lore-auth -n 20
@@ -397,7 +389,7 @@ Re-distribute the new cert to all editor hosts (repeat step 8).
 
 ```sh
 sudo systemctl stop arc-lore-auth
-sudo rm /root/.arc-lore-auth/arc-lore-auth.key
+sudo rm /opt/arc-lore-auth/arc-lore-auth.key
 sudo systemctl start arc-lore-auth
 sudo systemctl restart loreserver   # lore-server must re-fetch JWKS with new kid
 ```

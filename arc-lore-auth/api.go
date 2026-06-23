@@ -23,6 +23,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"strings"
 )
@@ -62,6 +63,7 @@ func writeAPIError(w http.ResponseWriter, status int, msg string) {
 // decodeJSON decodes the request body into dst. On a decode error it writes a 400
 // {"error":"invalid JSON body"} and returns false.
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
 		writeAPIError(w, http.StatusBadRequest, "invalid JSON body")
 		return false
@@ -82,7 +84,7 @@ func bearerToken(r *http.Request) string {
 	if len(h) >= len(prefix) && strings.EqualFold(h[:len(prefix)], prefix) {
 		return strings.TrimSpace(h[len(prefix):])
 	}
-	return strings.TrimSpace(h)
+	return ""
 }
 
 // apiAuthedHandler is an HTTP handler that also receives the verified claims.
@@ -252,12 +254,14 @@ type apiResourceResp struct {
 func (s *authServer) handleAPIStatus(w http.ResponseWriter, _ *http.Request) {
 	hasUsers, err := s.users.HasUsers()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: status has users: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	regOpen, err := s.users.RegistrationOpen()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: status registration open: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{
@@ -323,6 +327,10 @@ func (s *authServer) handleAPILogin(w http.ResponseWriter, r *http.Request) {
 	}
 	var req apiLoginReq
 	if !decodeJSON(w, r, &req) {
+		return
+	}
+	if len(req.Password) > 1024 {
+		writeAPIError(w, http.StatusBadRequest, "password too long")
 		return
 	}
 
@@ -401,7 +409,8 @@ func (s *authServer) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 	// Server-side gate — NEVER rely on the UI to hide the form.
 	open, err := s.users.RegistrationOpen()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: register check registration open: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	if !open {
@@ -441,7 +450,8 @@ func (s *authServer) handleAPIRegister(w http.ResponseWriter, r *http.Request) {
 			if isUsernameValidationErr(addErr) {
 				writeAPIError(w, http.StatusBadRequest, addErr.Error())
 			} else {
-				writeAPIError(w, http.StatusInternalServerError, addErr.Error())
+				log.Printf("api: register add user: %v", addErr)
+				writeAPIError(w, http.StatusInternalServerError, "internal error")
 			}
 		}
 		return
@@ -512,7 +522,8 @@ func (s *authServer) handleAPIMePassword(w http.ResponseWriter, r *http.Request,
 			return
 		}
 		if setErr := s.users.SetPassword(name, newHash); setErr != nil {
-			status, msg = http.StatusInternalServerError, setErr.Error()
+			log.Printf("api: me password set: %v", setErr)
+			status, msg = http.StatusInternalServerError, "internal error"
 			return
 		}
 	})
@@ -530,7 +541,8 @@ func (s *authServer) handleAPIRegistrationToggle(w http.ResponseWriter, r *http.
 		return
 	}
 	if err := s.users.SetRegistrationOpen(req.Open); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: registration toggle: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"registration_open": req.Open})
@@ -542,7 +554,8 @@ func (s *authServer) handleAPIRegistrationToggle(w http.ResponseWriter, r *http.
 func (s *authServer) handleAPIUsersList(w http.ResponseWriter, _ *http.Request, _ *arcLoreClaims) {
 	users, err := s.users.ListUsers()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: list users: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	out := make([]apiUserResp, 0, len(users))
@@ -586,7 +599,8 @@ func (s *authServer) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request
 			if isUsernameValidationErr(addErr) {
 				writeAPIError(w, http.StatusBadRequest, addErr.Error())
 			} else {
-				writeAPIError(w, http.StatusInternalServerError, addErr.Error())
+				log.Printf("api: create user add user: %v", addErr)
+				writeAPIError(w, http.StatusInternalServerError, "internal error")
 			}
 		}
 		return
@@ -594,7 +608,8 @@ func (s *authServer) handleAPIUsersCreate(w http.ResponseWriter, r *http.Request
 
 	u, err := s.users.GetUser(req.Username)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: create user get user: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusCreated, userToResp(u))
@@ -622,13 +637,15 @@ func (s *authServer) handleAPIUsersDelete(w http.ResponseWriter, r *http.Request
 			writeAPIError(w, http.StatusNotFound, "user not found")
 			return
 		}
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: delete user get user: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	if u.IsAdmin {
 		n, err := s.users.CountAdmins()
 		if err != nil {
-			writeAPIError(w, http.StatusInternalServerError, err.Error())
+			log.Printf("api: delete user count admins: %v", err)
+			writeAPIError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
 		if n <= 1 {
@@ -642,7 +659,8 @@ func (s *authServer) handleAPIUsersDelete(w http.ResponseWriter, r *http.Request
 			writeAPIError(w, http.StatusNotFound, "user not found")
 			return
 		}
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: delete user: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"deleted": normalizeUsername(name)})
@@ -676,7 +694,8 @@ func (s *authServer) handleAPIUsersSetPassword(w http.ResponseWriter, r *http.Re
 			writeAPIError(w, http.StatusNotFound, "user not found")
 			return
 		}
-		writeAPIError(w, http.StatusInternalServerError, setErr.Error())
+		log.Printf("api: set password: %v", setErr)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"updated": normalizeUsername(name)})
@@ -699,13 +718,15 @@ func (s *authServer) handleAPIUsersSetAdmin(w http.ResponseWriter, r *http.Reque
 				writeAPIError(w, http.StatusNotFound, "user not found")
 				return
 			}
-			writeAPIError(w, http.StatusInternalServerError, err.Error())
+			log.Printf("api: set admin get user: %v", err)
+			writeAPIError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
 		if u.IsAdmin {
 			n, err := s.users.CountAdmins()
 			if err != nil {
-				writeAPIError(w, http.StatusInternalServerError, err.Error())
+				log.Printf("api: set admin count admins: %v", err)
+				writeAPIError(w, http.StatusInternalServerError, "internal error")
 				return
 			}
 			if n <= 1 {
@@ -720,7 +741,8 @@ func (s *authServer) handleAPIUsersSetAdmin(w http.ResponseWriter, r *http.Reque
 			writeAPIError(w, http.StatusNotFound, "user not found")
 			return
 		}
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: set admin: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
@@ -735,7 +757,8 @@ func (s *authServer) handleAPIUsersSetAdmin(w http.ResponseWriter, r *http.Reque
 func (s *authServer) handleAPIResources(w http.ResponseWriter, _ *http.Request, _ *arcLoreClaims) {
 	resources, err := s.users.ListResources()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: list resources: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	out := make([]apiResourceResp, 0, len(resources))
@@ -797,11 +820,13 @@ func (s *authServer) handleAPIResourceCreate(w http.ResponseWriter, r *http.Requ
 	}
 	// Resource row first (GrantOwner has a FK on it).
 	if _, err := s.users.UpsertResource(id, strings.TrimSpace(req.Name)); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: create resource upsert: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	if err := s.users.GrantOwner(claims.Subject, id); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: create resource grant owner: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusCreated, apiResourceResp{
@@ -826,7 +851,8 @@ func (s *authServer) handleAPIResourceDelete(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	if err := s.users.DeleteResource(id); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: delete resource: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"removed": id})
@@ -840,7 +866,8 @@ func (s *authServer) handleAPIUserGrants(w http.ResponseWriter, r *http.Request,
 	name := r.PathValue("username")
 	grants, err := s.users.GrantsFor(name)
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: user grants: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, grants)
@@ -864,14 +891,16 @@ func (s *authServer) handleAPIGrantAdd(w http.ResponseWriter, r *http.Request, _
 			writeAPIError(w, http.StatusNotFound, "user not found")
 			return
 		}
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: add grant get user: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 
 	// Resource must exist.
 	resources, err := s.users.ListResources()
 	if err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: add grant list resources: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	wantID := strings.TrimSpace(req.ResourceID)
@@ -888,7 +917,8 @@ func (s *authServer) handleAPIGrantAdd(w http.ResponseWriter, r *http.Request, _
 	}
 
 	if err := s.users.AddGrant(req.Username, req.ResourceID, req.Permission); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: add grant: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]any{
@@ -911,7 +941,8 @@ func (s *authServer) handleAPIGrantRemove(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if err := s.users.RemoveGrant(req.Username, req.ResourceID, req.Permission); err != nil {
-		writeAPIError(w, http.StatusInternalServerError, err.Error())
+		log.Printf("api: remove grant: %v", err)
+		writeAPIError(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{

@@ -4,6 +4,7 @@ package web
 import (
 	"embed"
 	"io/fs"
+	"log"
 	"net/http"
 )
 
@@ -17,7 +18,7 @@ func StaticHandler() http.Handler {
 	if err != nil {
 		// embed.FS guarantees "static" exists at build time; a failure here is a
 		// programming error, not a runtime condition.
-		panic(err)
+		log.Fatalf("arcloreweb: static embed: %v", err)
 	}
 	fileServer := http.FileServer(http.FS(sub))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

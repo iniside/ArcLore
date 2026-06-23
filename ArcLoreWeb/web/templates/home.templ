@@ -2,16 +2,17 @@ package templates
 
 import "strconv"
 
-// HomeView is the personal dashboard model. Repos populates the sidebar; the
-// heatmap is rendered with real month labels but zero contribution data (no
-// per-day source yet); the activity feed is an empty state for now.
+// HomeView is the personal dashboard model. Repos populates the sidebar.
+//
+// Heatmap and activity feed are deferred: they require a lore-server activity
+// RPC that exposes per-revision author + timestamp (and ideally a cross-repo
+// stream). modelv1.RevisionItem carries neither; ListRevisions is per-branch
+// and has no author/timestamp fields. Until that RPC exists the widgets render
+// as explicit "coming soon" placeholders rather than misleading empty/zero state.
 type HomeView struct {
 	Username  string
 	RepoCount int
 	Repos     []HomeRepoView
-	Months    []string // 12 abbreviated month labels, oldest -> newest
-	HeatCells []int    // contribution level 0..4 per day cell (column-major)
-	HeatTotal int
 }
 
 // HomeRepoView is one repository in the dashboard sidebar list.
@@ -32,37 +33,16 @@ templ HomePage(v HomeView) {
 		<div class="home-grid">
 			<div class="home-main">
 				<div class="card heat-card">
-					<div class="heat-scroll">
-						<div class="heat-months">
-							for _, m := range v.Months {
-								<span>{ m }</span>
-							}
-						</div>
-						<div class="heat-body">
-							<div class="heat-days"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div>
-							<div class="heat-grid">
-								for _, lvl := range v.HeatCells {
-									<div class={ "heat-cell", heatLevel(lvl) }></div>
-								}
-							</div>
-						</div>
-						<div class="heat-foot">
-							<span>{ strconv.Itoa(v.HeatTotal) } contributions in the last 12 months</span>
-							<span class="heat-legend">
-								Less
-								<span class="heat-cell l0"></span>
-								<span class="heat-cell l1"></span>
-								<span class="heat-cell l2"></span>
-								<span class="heat-cell l3"></span>
-								<span class="heat-cell l4"></span>
-								More
-							</span>
-						</div>
+					<div class="home-feed-empty">
+						<span class="msi">calendar_month</span>
+						<p>Contribution graph — coming soon</p>
+						<span class="home-coming-soon-detail">Requires a lore-server activity RPC with per-revision author and timestamp.</span>
 					</div>
 				</div>
 				<div class="home-feed-empty">
 					<span class="msi">history</span>
-					<p>No recent activity yet.</p>
+					<p>Activity timeline — coming soon</p>
+					<span class="home-coming-soon-detail">Requires a cross-repo activity stream from lore-server.</span>
 				</div>
 			</div>
 			<aside class="home-aside">
@@ -99,18 +79,3 @@ templ HomePage(v HomeView) {
 	</section>
 }
 
-// heatLevel maps a contribution level 0..4 to its cell class.
-func heatLevel(lvl int) string {
-	switch {
-	case lvl <= 0:
-		return "l0"
-	case lvl == 1:
-		return "l1"
-	case lvl == 2:
-		return "l2"
-	case lvl == 3:
-		return "l3"
-	default:
-		return "l4"
-	}
-}

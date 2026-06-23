@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -273,4 +275,40 @@ func runSetPwCmd(configPath string, args []string) {
 		os.Exit(1)
 	}
 	fmt.Fprintf(os.Stdout, "updated password for %q in %s\n", normalizeUsername(username), cfg.DBPath)
+}
+
+// ── subcommand: hash-secret ───────────────────────────────────────────────────
+
+// runHashSecretCmd derives an argon2id PHC hash of an admin secret and prints
+// ONLY the hash to stdout, so install.sh can capture it and so the secret can be
+// stored in config.toml as `admin_secret = "$argon2id$…"` instead of plaintext.
+//
+// The secret is taken from args[0] when supplied, else read as a single line
+// from stdin (keeping it out of shell history). It is never echoed back.
+func runHashSecretCmd(args []string) {
+	var secret string
+	if len(args) > 0 {
+		secret = args[0]
+	} else {
+		line, err := bufio.NewReader(os.Stdin).ReadString('\n')
+		if err != nil && line == "" {
+			fmt.Fprintf(os.Stderr, "hash-secret: reading secret from stdin: %v\n", err)
+			os.Exit(1)
+		}
+		secret = strings.TrimRight(line, "\r\n")
+	}
+
+	if secret == "" {
+		fmt.Fprintln(os.Stderr, "hash-secret: secret must not be empty")
+		fmt.Fprintln(os.Stderr, "  usage: arc-lore-auth hash-secret [<secret>]   (or pipe the secret on stdin)")
+		os.Exit(1)
+	}
+
+	hash, err := HashPassword(secret)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "hash-secret: hashing secret: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println(hash)
 }

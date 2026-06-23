@@ -184,3 +184,9 @@ go test -tags smoke ./internal/lore/...
 - Notifications and live updates
 - Write operations (commit, lock, unlock)
 - Owner namespacing (Lore repos are globally unique by name; owner segment is cosmetic)
+- **Contribution heatmap and activity feed** — rendered as "coming soon" placeholders.
+  Both require a lore-server activity RPC that exposes per-revision **author** and
+  **timestamp** (and ideally a cross-repo activity stream). `modelv1.RevisionItem`
+  currently carries neither field; `ListRevisions` is scoped to a single branch and has
+  no author/timestamp. Until that RPC exists there is no client-side path to build
+  either widget without fabricating data.

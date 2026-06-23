@@ -16,6 +16,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/lestrrat-go/jwx/v2/jwk"
@@ -64,6 +65,15 @@ func generateAndSaveKey(keyPath string) (*rsa.PrivateKey, error) {
 }
 
 func loadKey(keyPath string) (*rsa.PrivateKey, error) {
+	if runtime.GOOS != "windows" {
+		info, statErr := os.Stat(keyPath)
+		if statErr != nil {
+			return nil, fmt.Errorf("stat key file %s: %w", keyPath, statErr)
+		}
+		if info.Mode().Perm()&0177 != 0 {
+			return nil, fmt.Errorf("key file %s has unsafe permissions %04o — must be 0600", keyPath, info.Mode().Perm())
+		}
+	}
 	data, err := os.ReadFile(keyPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading key file %s: %w", keyPath, err)

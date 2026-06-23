@@ -3,10 +3,13 @@ package handlers
 import (
 	"bytes"
 	"context"
+	"html"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 
+	"github.com/a-h/templ"
 	"github.com/go-chi/chi/v5"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -218,7 +221,9 @@ func (h *Handler) Raw(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Length", formatInt(size))
 	}
 	w.WriteHeader(http.StatusOK)
-	_, _ = io.Copy(w, body)
+	if _, err := io.Copy(w, body); err != nil {
+		log.Printf("tree: raw copy: %v", err)
+	}
 }
 
 // renderDirListing renders the file-table page for a directory. nodes is the
@@ -344,8 +349,14 @@ func (h *Handler) renderFileView(
 	highlighted, herr := render.Highlight(filename, src)
 	if herr != nil {
 		// Fallback: render as plain text if highlight fails.
+		log.Printf("tree: highlight %q failed, using plain text: %v", filename, herr)
 		lexerName = "Plain Text"
-		highlighted, _ = render.Highlight("", src)
+		var ferr error
+		highlighted, ferr = render.Highlight("", src)
+		if ferr != nil {
+			log.Printf("tree: plain-text fallback failed: %v", ferr)
+			highlighted = templ.Raw(html.EscapeString(string(src)))
+		}
 	}
 
 	view := templates.FileView{

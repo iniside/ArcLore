@@ -13,24 +13,36 @@ type LocksView struct {
 // LockRowView is one lock in the locks table. Path is the repo-relative file
 // path (resource.description); Owner is the raw lock owner user id; LockedAt is
 // the already-formatted lock timestamp.
+//
+// Branch/Hash/Description are the lock's exact Resource fields, round-tripped
+// into the per-row release form so the server can match the precise lock to
+// release: Branch and Hash are hex-encoded (the raw bytes are not form-safe);
+// Description is the verbatim resource description.
 type LockRowView struct {
-	Path     string
-	Owner    string
-	LockedAt string
+	Path        string
+	Owner       string
+	LockedAt    string
+	Branch      string // hex(resource.branch)
+	Hash        string // hex(resource.hash)
+	Description string // resource.description (verbatim)
 }
 
 // LocksPage renders the per-branch locks list in the Forge layout: the shared
 // repo sub-header (Code/Commits/Locks tabs) then a single card with a File /
-// Locked by / Locked at grid, or an empty state. Read-only — releasing a lock
-// needs write auth + a replicated command (TODO).
+// Locked by / Locked at / action grid, or an empty state. Each row carries a
+// small POST form to /{owner}/{repo}/locks/branch/{branch}/release that
+// round-trips the lock's exact Resource (branch/hash hex + description) so the
+// server releases that precise lock. CSRF is enforced globally — no token
+// field. The route is behind RequireAuth; lore-server is the release authority.
 templ LocksPage(view LocksView) {
 	<section class="locks">
 		@RepoSubHeader(view.RepoName, view.BranchName, "locks")
-		<div class="card" style="--cols: 1fr 200px 200px;">
+		<div class="card" style="--cols: 1fr 200px 200px 120px;">
 			<div class="lt-head">
 				<span>File</span>
 				<span>Locked by</span>
 				<span>Locked at</span>
+				<span></span>
 			</div>
 			if len(view.Rows) == 0 {
 				<div class="lt-empty">No locks on this branch.</div>
@@ -40,6 +52,14 @@ templ LocksPage(view LocksView) {
 						<code>{ row.Path }</code>
 						<span>{ row.Owner }</span>
 						<span>{ row.LockedAt }</span>
+						<span>
+							<form method="post" action={ templ.SafeURL("/" + view.Owner + "/" + view.RepoName + "/locks/branch/" + view.BranchName + "/release") } style="display:inline">
+								<input type="hidden" name="branch" value={ row.Branch }/>
+								<input type="hidden" name="hash" value={ row.Hash }/>
+								<input type="hidden" name="description" value={ row.Description }/>
+								<button type="submit" class="admin-delete">Release</button>
+							</form>
+						</span>
 					</div>
 				}
 			}

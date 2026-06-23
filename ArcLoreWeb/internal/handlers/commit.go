@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"encoding/hex"
+	"log"
 	"net/http"
 	"sort"
 	"strings"
@@ -95,14 +96,14 @@ func (h *Handler) Commit(w http.ResponseWriter, r *http.Request) {
 	if derr2 != nil {
 		// A diff failure is rendered as "no file changes" rather than a hard
 		// error so the commit header still shows.
+		log.Printf("commit: RevisionDiff %s->%s: %v", hex.EncodeToString(parentSig), hex.EncodeToString(sig), derr2)
 		renderPage(w, r, view.ShortSig+" — ArcLore", templates.CommitPage(view))
 		return
 	}
 
-	// Flatten the diff entries to file changes here (the entry element type is
-	// unexported in the lore package; ranging keeps it unnamed). DIRECTORY
-	// changes and conflict entries are skipped — conflicts are not rendered in
-	// v1.
+	// Flatten the diff entries (lore.RevisionDiffEntry) to file changes here.
+	// DIRECTORY changes and conflict entries are skipped — conflicts are not
+	// rendered in v1.
 	changes := make([]*thin_clientv1.DiffChange, 0, len(entries))
 	for _, entry := range entries {
 		change := entry.Change

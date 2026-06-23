@@ -278,11 +278,11 @@ if [[ -z "$ADMIN_SECRET" ]]; then
     log "Generated random admin_secret (32 hex)."
 fi
 if [[ -z "$SESSION_SECRET" ]]; then
-    # Reuse the SESSION_SECRET from an existing arcloreweb.service so a re-run
+    # Reuse the SESSION_SECRET from an existing env-file so a re-run
     # doesn't invalidate live web sessions — unless --overwrite rotates it.
     EXISTING_SS=""
-    if [[ "$OVERWRITE" != "1" && -f "$SYSTEMD_DIR/arcloreweb.service" ]]; then
-        EXISTING_SS="$(sed -n 's/^Environment=SESSION_SECRET=\(.*\)$/\1/p' "$SYSTEMD_DIR/arcloreweb.service" | head -n1)"
+    if [[ "$OVERWRITE" != "1" && -f "/etc/arcloreweb/session-secret.env" ]]; then
+        EXISTING_SS="$(sed -n 's/^SESSION_SECRET=//p' "/etc/arcloreweb/session-secret.env" 2>/dev/null | head -n1)"
     fi
     if [[ -n "$EXISTING_SS" ]]; then
         SESSION_SECRET="$EXISTING_SS"
@@ -351,13 +351,29 @@ ok "Built arcloreweb"
 # ──────────────────────────────────────────────────────────────────────────────
 hdr "Installing binaries"
 
-install -d -m 0755 "$OPT_AUTH_DIR"
-install -m 0755 "$AUTH_SRC/arc-lore-auth-linux-amd64" "$OPT_AUTH_BIN"
-ok "Installed $OPT_AUTH_BIN"
+# Create dedicated service accounts (idempotent).
+if ! id arc-lore-auth >/dev/null 2>&1; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin arc-lore-auth
+    ok "Created system user arc-lore-auth"
+else
+    log "System user arc-lore-auth already exists — keeping."
+fi
+if ! id arcloreweb >/dev/null 2>&1; then
+    useradd --system --no-create-home --shell /usr/sbin/nologin arcloreweb
+    ok "Created system user arcloreweb"
+else
+    log "System user arcloreweb already exists — keeping."
+fi
+
+install -d -m 0750 "$OPT_AUTH_DIR"
+install -m 0750 "$AUTH_SRC/arc-lore-auth-linux-amd64" "$OPT_AUTH_BIN"
+chown root:arc-lore-auth "$OPT_AUTH_BIN"
+ok "Installed $OPT_AUTH_BIN (root:arc-lore-auth 0750)"
 
 install -d -m 0755 "$OPT_WEB_DIR"
-install -m 0755 "$WEB_SRC/arcloreweb" "$OPT_WEB_BIN"
-ok "Installed $OPT_WEB_BIN"
+install -m 0750 "$WEB_SRC/arcloreweb" "$OPT_WEB_BIN"
+chown root:arcloreweb "$OPT_WEB_BIN"
+ok "Installed $OPT_WEB_BIN (root:arcloreweb 0750)"
 
 install -d -m 0755 "$DEPLOY_DIR"
 
@@ -372,6 +388,11 @@ else
         warn "--overwrite: backed up existing $OPT_AUTH_CONFIG to ${OPT_AUTH_CONFIG}.bak"
     fi
 
+    # Hash the admin_secret via the binary (argon2id PHC) so the plaintext never
+    # lands in config.toml.  The binary is already installed above, so the hash
+    # command is available here.  The plaintext is still shown in the summary.
+    ADMIN_SECRET_HASH="$("$OPT_AUTH_BIN" hash-secret "$ADMIN_SECRET")"
+
     # Generate from the template, stripping any uncommented assignment of the keys
     # we own so our values win regardless of template drift, then append our block.
     STRIP_KEYS='^[[:space:]]*(tls_san|audience|web_base_url|admin_secret|db_path|token_ttl|web_listen_addr|grpc_listen_addr|key_path|secret_path|tls_cert_path|tls_key_path)[[:space:]]*='
@@ -383,7 +404,7 @@ else
 tls_san          = "${LORE_HOST}"
 audience         = "${LORE_HOST}"
 web_base_url     = "${WEB_BASE_URL}"
-admin_secret     = "${ADMIN_SECRET}"
+admin_secret     = "${ADMIN_SECRET_HASH}"
 db_path          = "${OPT_AUTH_DB}"
 token_ttl        = "${TOKEN_TTL}"
 web_listen_addr  = "0.0.0.0:8080"
@@ -395,9 +416,19 @@ secret_path      = "${OPT_AUTH_SECRET}"
 tls_cert_path    = "${OPT_AUTH_CERT}"
 tls_key_path     = "${OPT_AUTH_TLS_KEY}"
 EOF
-    chmod 0600 "$OPT_AUTH_CONFIG"   # holds admin_secret — keep it root-only.
-    ok "Wrote $OPT_AUTH_CONFIG (mode 0600)"
+    chmod 0600 "$OPT_AUTH_CONFIG"   # holds admin_secret hash — keep it root-only.
+    ok "Wrote $OPT_AUTH_CONFIG (mode 0600, admin_secret as argon2id hash)"
 fi
+
+# Give the auth service user ownership of its data dir so it can write
+# the RSA signing key, TLS cert/key, and SQLite DB on first boot.
+chown -R arc-lore-auth:arc-lore-auth "$OPT_AUTH_DIR"
+# The binary lives inside this dir; keep it root-owned so the service user
+# cannot rewrite its own executable (persistence hardening). Re-assert after
+# the recursive chown above, which would otherwise hand it to the service user.
+chown root:arc-lore-auth "$OPT_AUTH_BIN"
+chmod 0750 "$OPT_AUTH_BIN"
+ok "Set $OPT_AUTH_DIR ownership to arc-lore-auth:arc-lore-auth (binary stays root-owned)"
 
 # ──────────────────────────────────────────────────────────────────────────────
 # systemd units
@@ -421,23 +452,32 @@ Before=loreserver.service
 
 [Service]
 Type=simple
+User=arc-lore-auth
+Group=arc-lore-auth
 WorkingDirectory=${OPT_AUTH_DIR}
 ExecStart=${OPT_AUTH_BIN} -config ${OPT_AUTH_CONFIG}
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=full
-# Signing key + issue secret are pinned under ${OPT_AUTH_DIR} (key_path/secret_path
-# in config.toml), NOT root's home — so ProtectHome=true is safe and the key is
-# preserved across restarts (stable kid).
+ProtectSystem=strict
+# Signing key + TLS cert/key + SQLite DB are pinned under ${OPT_AUTH_DIR}; the
+# service user owns this dir so first-boot generation succeeds under strict mode.
+ReadWritePaths=${OPT_AUTH_DIR}
 ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target
 EOF
 chmod 0644 "$AUTH_UNIT_DST"
-ok "Installed arc-lore-auth.service (WorkingDirectory=${OPT_AUTH_DIR}, ProtectHome=true)"
+ok "Installed arc-lore-auth.service (User=arc-lore-auth, ProtectSystem=strict, ReadWritePaths=${OPT_AUTH_DIR})"
+
+# Write SESSION_SECRET to a root:arcloreweb-owned env-file (not inline in the unit).
+install -d -m 0750 /etc/arcloreweb
+printf 'SESSION_SECRET=%s\n' "$SESSION_SECRET" > /etc/arcloreweb/session-secret.env
+chown root:arcloreweb /etc/arcloreweb/session-secret.env
+chmod 0640 /etc/arcloreweb/session-secret.env
+ok "Wrote /etc/arcloreweb/session-secret.env (root:arcloreweb 0640)"
 
 # Write arcloreweb.service with real Environment= values substituted in.
 WEB_UNIT_DST="$SYSTEMD_DIR/arcloreweb.service"
@@ -453,6 +493,8 @@ Wants=network-online.target
 
 [Service]
 Type=simple
+User=arcloreweb
+Group=arcloreweb
 WorkingDirectory=${OPT_WEB_DIR}
 ExecStart=${OPT_WEB_BIN}
 Restart=on-failure
@@ -462,21 +504,25 @@ Environment=LISTEN_ADDR=${WEB_LISTEN}
 Environment=LORE_GRPC_ADDR=${LORE_GRPC_ADDR}
 Environment=LORE_HTTP_ADDR=${LORE_HTTP_ADDR}
 Environment=MGMT_API_ADDR=${MGMT_API_ADDR}
-Environment=SESSION_SECRET=${SESSION_SECRET}
 Environment=LORE_AUTH_DISABLED=false
 # Trust arc-lore-auth's self-signed gRPC cert for the token-exchange TLS call.
 Environment=SSL_CERT_FILE=${WEB_CA_BUNDLE}
+# SESSION_SECRET is loaded from a restricted env-file (root:arcloreweb 0640)
+# so it never appears in the unit or journald output.
+EnvironmentFile=/etc/arcloreweb/session-secret.env
 
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=full
+ProtectSystem=strict
+# ArcLoreWeb is stateless — no runtime writes under any protected path.
+# (All logging goes to journald; no on-disk state beyond the binary dir.)
 ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target
 EOF
-chmod 0600 "$WEB_UNIT_DST"   # holds SESSION_SECRET — keep it root-only.
-ok "Installed arcloreweb.service (mode 0600 — holds SESSION_SECRET)"
+chmod 0644 "$WEB_UNIT_DST"
+ok "Installed arcloreweb.service (User=arcloreweb, ProtectSystem=strict, SESSION_SECRET via EnvironmentFile)"
 
 log "systemctl daemon-reload"
 systemctl daemon-reload
@@ -511,8 +557,9 @@ ok "arc-lore-auth is healthy."
 hdr "ArcLoreWeb auth trust bundle"
 if [[ -f "$OPT_AUTH_CERT" && -f "$CA_BUNDLE_SRC" ]]; then
     cat "$CA_BUNDLE_SRC" "$OPT_AUTH_CERT" > "$WEB_CA_BUNDLE"
-    chmod 0644 "$WEB_CA_BUNDLE"
-    ok "Wrote $WEB_CA_BUNDLE (system CAs + auth cert)."
+    chown root:arcloreweb "$WEB_CA_BUNDLE"
+    chmod 0640 "$WEB_CA_BUNDLE"
+    ok "Wrote $WEB_CA_BUNDLE (root:arcloreweb 0640 — system CAs + auth cert)."
 else
     warn "Could not build $WEB_CA_BUNDLE (missing $OPT_AUTH_CERT or $CA_BUNDLE_SRC)."
     warn "ArcLoreWeb's token exchange will fail TLS until this bundle exists."

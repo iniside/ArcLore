@@ -4,8 +4,11 @@ import (
 	"crypto/tls"
 	"flag"
 	"fmt"
+	"log"
+	"net"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc"
@@ -28,6 +31,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "  userlist     list users in the DB store\n")
 		fmt.Fprintf(os.Stderr, "  userdel      delete a user from the DB store\n")
 		fmt.Fprintf(os.Stderr, "  setpw        set a user's password (prompts for a password)\n")
+		fmt.Fprintf(os.Stderr, "  hash-secret  print an argon2id hash of an admin secret (for admin_secret in config)\n")
 		fmt.Fprintf(os.Stderr, "\nFlags:\n")
 		flag.PrintDefaults()
 	}
@@ -55,6 +59,8 @@ func main() {
 		runUserDelCmd(*configPath, args)
 	case "setpw":
 		runSetPwCmd(*configPath, args)
+	case "hash-secret":
+		runHashSecretCmd(args)
 	default:
 		runDaemon(*configPath, *listenAddr, *audience)
 	}
@@ -182,6 +188,9 @@ func runDaemon(configPath, listenOverride, audienceOverride string) {
 	fmt.Fprintf(os.Stdout, "  login : http://%s/login  (interactive; reach via web_base_url)\n", cfg.WebListenAddr)
 	if cfg.AdminSecret != "" {
 		fmt.Fprintf(os.Stdout, "  admin : http://%s/admin  (admin_secret required)\n", cfg.WebListenAddr)
+		if !strings.HasPrefix(cfg.AdminSecret, "$argon2id$") {
+			log.Printf("WARNING: admin_secret in config is plaintext; generate a hash with `arc-lore-auth hash-secret` and replace it for at-rest protection")
+		}
 	} else {
 		fmt.Fprintf(os.Stdout, "  admin : DISABLED (admin_secret unset — /admin returns 503)\n")
 	}
@@ -194,18 +203,52 @@ func runDaemon(configPath, listenOverride, audienceOverride string) {
 		fmt.Fprintf(os.Stdout, "  install the gRPC cert into each editor host's Trusted Root store:\n")
 		fmt.Fprintf(os.Stdout, "    certutil -addstore Root %s\n", certPath)
 	}
+	// When web TLS is NOT configured, warn if the web/JWKS listener binds to a
+	// non-loopback address — credentials/session tokens would travel in cleartext.
+	// 0.0.0.0, ::, and an empty host count as non-loopback; only 127.0.0.1/::1/
+	// localhost are treated as loopback.
+	if cfg.WebTLSCertPath == "" {
+		host, _, splitErr := net.SplitHostPort(cfg.WebListenAddr)
+		if splitErr != nil {
+			host = cfg.WebListenAddr
+		}
+		ip := net.ParseIP(host)
+		isLoopback := host == "localhost" || (ip != nil && ip.IsLoopback())
+		if !isLoopback {
+			log.Printf("WARNING: web/JWKS listener bound to %s over plaintext HTTP — credentials and session tokens are sent unencrypted. Set web_tls_cert_path + web_tls_key_path, or bind to 127.0.0.1, before exposing this beyond a trusted LAN.", cfg.WebListenAddr)
+		}
+	}
+
 	// Run the gRPC listener alongside the HTTP JWKS listener; both must come up.
 	errCh := make(chan error, 2)
 	go func() {
 		errCh <- fmt.Errorf("gRPC listener: %w", serveGRPC(cfg.GRPCListenAddr, grpcCreds, grpcSrv, rebacSrv))
 	}()
 	go func() {
-		errCh <- fmt.Errorf("HTTP listener: %w", http.ListenAndServe(cfg.WebListenAddr, mux))
+		errCh <- fmt.Errorf("HTTP listener: %w", serveWeb(cfg, mux))
 	}()
 
 	// Either listener exiting is fatal.
 	if err := <-errCh; err != nil {
 		fmt.Fprintf(os.Stderr, "arc-lore-auth: %v\n", err)
 		os.Exit(1)
+	}
+}
+
+// serveWeb starts the web/JWKS HTTP listener. TLS is opt-in: when BOTH
+// web_tls_cert_path and web_tls_key_path are set the listener serves HTTPS;
+// when neither is set (the default) it serves plaintext HTTP — the deliberate
+// interop contract with lore-server + editor clients. Supplying exactly one of
+// the pair is a misconfiguration and fails fast.
+func serveWeb(cfg *Config, mux *http.ServeMux) error {
+	certSet := cfg.WebTLSCertPath != ""
+	keySet := cfg.WebTLSKeyPath != ""
+	switch {
+	case certSet && keySet:
+		return http.ListenAndServeTLS(cfg.WebListenAddr, cfg.WebTLSCertPath, cfg.WebTLSKeyPath, mux)
+	case certSet != keySet:
+		return fmt.Errorf("web TLS cert/key are half-present: supply BOTH web_tls_cert_path and web_tls_key_path, or neither")
+	default:
+		return http.ListenAndServe(cfg.WebListenAddr, mux)
 	}
 }

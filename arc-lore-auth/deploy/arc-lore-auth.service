@@ -23,18 +23,15 @@
 #   the signing key was preserved (kid unchanged across restarts) and the
 #   audience / SAN match the lore-server config.
 #
-# PATHS (real /opt+root deployment)
-#   binary : /opt/arc-lore-auth-linux-amd64
-#   config : /opt/config.toml
-#   TLS cert/key, users.json : /opt/ (defaults resolved from WorkingDirectory=/opt)
-#   RSA signing key, issue secret : /root/.arc-lore-auth/ (root's home default)
+# PATHS (reference deployment under /opt/arc-lore-auth)
+#   binary : /opt/arc-lore-auth/arc-lore-auth-linux-amd64
+#   config : /opt/arc-lore-auth/config.toml
+#   TLS cert/key, users.json : /opt/arc-lore-auth/ (defaults resolved from WorkingDirectory)
+#   RSA signing key, issue secret : /opt/arc-lore-auth/ (key_path pinned in config.toml)
 #
-#   WARNING — ProtectHome: this unit intentionally omits ProtectHome so that the
-#   signing key and issue secret in /root/.arc-lore-auth/ remain accessible.
-#   ProtectHome=true would hide the home directory, regenerate the signing key on
-#   next start, and immediately invalidate every issued token. To re-enable
-#   ProtectHome, first pin key_path to an absolute path under /opt
-#   in config.toml (see "Hardening" section in INSTALL.md).
+#   ProtectHome=true is enabled because all runtime files live under /opt/arc-lore-auth.
+#   If you move key_path back to a home directory, remove ProtectHome or it will hide the
+#   key, force a regen on next start, and immediately invalidate every issued token.
 #
 # BOOT ORDERING
 #   Before=loreserver.service gives best-effort ordering at boot but is NOT
@@ -59,14 +56,14 @@
 #   The TLS cert regenerates ONLY when both cert+key files are absent at startup.
 #   To rotate (or after changing tls_san in config.toml):
 #     sudo systemctl stop arc-lore-auth
-#     sudo rm /opt/arc-lore-auth-tls.crt \
-#             /opt/arc-lore-auth-tls.key
+#     sudo rm /opt/arc-lore-auth/arc-lore-auth-tls.crt \
+#             /opt/arc-lore-auth/arc-lore-auth-tls.key
 #     sudo systemctl start arc-lore-auth
 #   Then re-distribute the new cert to all editor hosts (see INSTALL.md).
 
 [Unit]
 Description=arc-lore-auth — JWKS + gRPC auth (authz exchange + interactive login) for self-hosted Lore
-Documentation=file:///opt/INSTALL.md
+Documentation=file:///opt/arc-lore-auth/INSTALL.md
 After=network-online.target
 Wants=network-online.target
 # Best-effort: arc-lore-auth should be running before loreserver tries to
@@ -75,17 +72,14 @@ Before=loreserver.service
 
 [Service]
 Type=simple
-WorkingDirectory=/opt
-ExecStart=/opt/arc-lore-auth-linux-amd64 -config /opt/config.toml
+WorkingDirectory=/opt/arc-lore-auth
+ExecStart=/opt/arc-lore-auth/arc-lore-auth-linux-amd64 -config /opt/arc-lore-auth/config.toml
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
-# NOTE: NO ProtectHome — the RSA signing key + issue secret default to
-# /root/.arc-lore-auth/ (root's home); ProtectHome=true would hide them and force
-# a key regen, invalidating every issued token. Pin key_path to /opt
-# in config.toml if you want ProtectHome back.
+ProtectHome=true
 
 [Install]
 WantedBy=multi-user.target

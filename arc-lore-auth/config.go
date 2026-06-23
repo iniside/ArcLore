@@ -46,6 +46,12 @@ type Config struct {
 	// listen_addr for the web/JWKS listener.
 	WebListenAddr string `toml:"web_listen_addr"`
 
+	// Optional TLS for the web/JWKS HTTP listener. Both must be supplied together
+	// to switch the listener to HTTPS; empty (the default) = plaintext HTTP, which
+	// is the deliberate interop contract with lore-server + editor clients.
+	WebTLSCertPath string `toml:"web_tls_cert_path"` // optional; empty = plaintext HTTP (default)
+	WebTLSKeyPath  string `toml:"web_tls_key_path"`  // optional; must be paired with web_tls_cert_path
+
 	// AdminSecret gates the /admin user-management pages. The operator pastes it
 	// into an unlock form; on match a short-lived signed cookie is set. If empty,
 	// /admin fails CLOSED (503 "admin disabled") — never served open.

@@ -2101,7 +2101,7 @@ a.sig-chip:hover { background: var(--accent-subtle); color: var(--accent-text); 
 .heat-foot > span:first-child { font-size: 12px; color: var(--text-secondary); }
 .heat-legend { display: flex; align-items: center; gap: 4px; font-size: 11px; color: var(--text-secondary); }
 
-/* Activity feed (empty state for now). */
+/* Activity feed / coming-soon placeholders. */
 .home-feed-empty {
   display: flex;
   flex-direction: column;
@@ -2114,6 +2114,7 @@ a.sig-chip:hover { background: var(--accent-subtle); color: var(--accent-text); 
 }
 .home-feed-empty .msi { font-size: 32px; color: var(--text-muted); }
 .home-feed-empty p { margin: 0; font-size: 14px; }
+.home-coming-soon-detail { font-size: 11px; color: var(--text-muted); text-align: center; }
 
 /* Repositories sidebar. */
 .home-aside-tabs {

@@ -37,8 +37,13 @@ func jwtSummary(token string) string {
 		exp = fmt.Sprintf("%d", int64(v))
 	}
 
+	redactedSub := sub
+	if len(sub) > 8 {
+		redactedSub = sub[:8] + "…"
+	}
+
 	return fmt.Sprintf("kid=%q alg=%q iss=%q aud=%q sub=%q exp=%s resources=%s",
-		kid, alg, iss, aud, sub, exp, res)
+		kid, alg, iss, aud, redactedSub, exp, res)
 }
 
 func decodeJWTSegment(seg string) map[string]any {

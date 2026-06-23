@@ -635,8 +635,20 @@ func (s *authServer) handleAdminUnlock(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provided := r.PostFormValue("secret")
-	// Constant-time compare of the admin secret.
-	if subtle.ConstantTimeCompare([]byte(provided), []byte(s.cfg.AdminSecret)) != 1 {
+	// Dual-mode admin-secret verification:
+	//   - $argon2id$… PHC hash → re-derive under the hash semaphore (never derive
+	//     a hash unbounded; argon2 is memory-hard and concurrent unlock attempts
+	//     would otherwise exhaust memory — the same invariant as the login path).
+	//   - plaintext (back-compat) → constant-time compare so existing configs
+	//     keep working without a forced upgrade.
+	if strings.HasPrefix(s.cfg.AdminSecret, "$argon2id$") {
+		var ok bool
+		s.withHashSem(func() { ok = VerifyPassword(s.cfg.AdminSecret, provided) })
+		if !ok {
+			s.renderAdminUnlock(w, r, "Incorrect admin secret.")
+			return
+		}
+	} else if subtle.ConstantTimeCompare([]byte(provided), []byte(s.cfg.AdminSecret)) != 1 {
 		s.renderAdminUnlock(w, r, "Incorrect admin secret.")
 		return
 	}

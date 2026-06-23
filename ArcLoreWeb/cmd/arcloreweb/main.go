@@ -2,8 +2,14 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -36,7 +42,7 @@ func main() {
 		loreClient.SetAuthURL(cfg.AuthURL)
 	}
 
-	sessions := auth.NewSessionManager(cfg.CookieSecure)
+	sessions := auth.NewSessionManager(cfg.CookieSecure, cfg.SessionSecret)
 	h := handlers.New(loreClient, sessions)
 
 	// mgmtClient is shared by the native-login flow and the admin handlers.
@@ -92,7 +98,7 @@ func main() {
 		// forms stay open.
 		lt := auth.NewLoginThrottle(8, 6*time.Second)
 
-		native := &auth.Native{Mgmt: mgmtClient, Sessions: sessions}
+		native := &handlers.Native{Mgmt: mgmtClient, Sessions: sessions}
 		router.Get("/auth/login", native.LoginForm)
 		router.With(lt.Middleware(cfg.TrustForwardedFor)).Post("/auth/login", native.LoginSubmit)
 		router.Get("/auth/logout", native.Logout)
@@ -126,6 +132,7 @@ func main() {
 		r.Get("/{owner}/{repo}/raw/branch/{branch}/*", h.Raw)
 		r.Get("/{owner}/{repo}/commits/branch/{branch}", h.Commits)
 		r.Get("/{owner}/{repo}/locks/branch/{branch}", h.Locks)
+		r.Post("/{owner}/{repo}/locks/branch/{branch}/release", h.ReleaseLock)
 		r.Get("/{owner}/{repo}/commit/{sig}", h.Commit)
 	})
 
@@ -155,8 +162,69 @@ func main() {
 		r.Post("/admin/grants/delete", adminHandler.AdminRemoveGrant)
 	})
 
-	log.Printf("arcloreweb: listening on %s (auth_disabled=%t)", cfg.ListenAddr, cfg.AuthDisabled)
-	if err := http.ListenAndServe(cfg.ListenAddr, router); err != nil {
-		log.Fatalf("arcloreweb: server: %v", err)
+	// Warn-on-unsafe: surface plaintext exposure when bound beyond loopback.
+	// Same loopback rule as the auth service — 0.0.0.0/::/empty are non-loopback;
+	// only 127.0.0.1/::1/localhost count as loopback.
+	host, _, splitErr := net.SplitHostPort(cfg.ListenAddr)
+	if splitErr != nil {
+		host = cfg.ListenAddr
 	}
+	ip := net.ParseIP(host)
+	nonLoopback := !(host == "localhost" || (ip != nil && ip.IsLoopback()))
+	if nonLoopback {
+		if cfg.TLSCertFile == "" {
+			log.Printf("WARNING: arcloreweb bound to %s over plaintext HTTP — set TLS_CERT_FILE/TLS_KEY_FILE or bind to 127.0.0.1 before exposing beyond a trusted LAN.", cfg.ListenAddr)
+		}
+		if !cfg.CookieSecure {
+			log.Printf("WARNING: SESSION_COOKIE_SECURE=false on a non-loopback bind — the session cookie is sent over plaintext.")
+		}
+		if !grpcUsesTLS(cfg.LoreGRPCAddr) {
+			log.Printf("WARNING: gRPC to lore-server is plaintext on a non-loopback bind — the authz token travels unencrypted.")
+		}
+	}
+
+	srv := &http.Server{Addr: cfg.ListenAddr, Handler: router}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// TLS is opt-in: both files set → HTTPS; exactly one → fatal misconfig; none
+	// → plaintext HTTP (the default LAN mode, unchanged).
+	serveErr := make(chan error, 1)
+	switch {
+	case cfg.TLSCertFile != "" && cfg.TLSKeyFile != "":
+		go func() { serveErr <- srv.ListenAndServeTLS(cfg.TLSCertFile, cfg.TLSKeyFile) }()
+	case cfg.TLSCertFile != "" || cfg.TLSKeyFile != "":
+		log.Fatalf("arcloreweb: TLS_CERT_FILE and TLS_KEY_FILE must be set together")
+	default:
+		go func() { serveErr <- srv.ListenAndServe() }()
+	}
+
+	log.Printf("arcloreweb: listening on %s (auth_disabled=%t)", cfg.ListenAddr, cfg.AuthDisabled)
+
+	select {
+	case err := <-serveErr:
+		if err != nil && err != http.ErrServerClosed {
+			log.Fatalf("arcloreweb: server: %v", err)
+		}
+	case <-ctx.Done():
+		stop() // restore default signal handling so a second Ctrl-C forces exit
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Fatalf("arcloreweb: shutdown: %v", err)
+		}
+	}
+}
+
+// grpcUsesTLS reports whether the Lore gRPC connection is encrypted, mirroring
+// lore.Dial's ACTUAL detection: only a "…s://" scheme (e.g. "grpcs://") requests
+// TLS. Dial does not consume LoreTLS, so the warning must not either — keying off
+// LoreTLS here would silence the warning while the dial stays plaintext.
+func grpcUsesTLS(grpcAddr string) bool {
+	scheme, _, found := strings.Cut(grpcAddr, "://")
+	if !found {
+		return false
+	}
+	return strings.HasSuffix(scheme, "s")
 }

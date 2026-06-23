@@ -15,6 +15,12 @@ type Config struct {
 	// ListenAddr is the HTTP listen address for the web server.
 	ListenAddr string `env:"LISTEN_ADDR" envDefault:":41380"`
 
+	// TLSCertFile and TLSKeyFile optionally enable TLS on the web listener. Both
+	// must be set together; when both are empty (the default) the server listens
+	// over plaintext HTTP, which is the expected mode on a trusted LAN.
+	TLSCertFile string `env:"TLS_CERT_FILE"`
+	TLSKeyFile  string `env:"TLS_KEY_FILE"`
+
 	// LoreGRPCAddr is the Lore gRPC endpoint (host:port, optionally with a
 	// scheme such as "grpcs://" to request TLS). Required.
 	LoreGRPCAddr string `env:"LORE_GRPC_ADDR,required"`
@@ -40,8 +46,11 @@ type Config struct {
 	// discovered via EnvironmentService. Empty = discover from the server.
 	AuthURL string `env:"LORE_AUTH_URL"`
 
-	// SessionSecret keys the session cookie integrity. Required.
-	SessionSecret string `env:"SESSION_SECRET,required"`
+	// SessionSecret is reserved for forward-compat but is a no-op: scs uses
+	// opaque server-side session tokens and cannot be externally signed.
+	// Kept optional so existing deployments that set SESSION_SECRET continue to
+	// work without errors, and new deployments need not configure a do-nothing value.
+	SessionSecret string `env:"SESSION_SECRET"`
 
 	// DevUserSub is the synthetic user subject written by the dev-login bypass.
 	DevUserSub string `env:"DEV_USER_SUB" envDefault:"dev-user"`

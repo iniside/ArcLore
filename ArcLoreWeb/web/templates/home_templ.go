@@ -10,16 +10,17 @@ import templruntime "github.com/a-h/templ/runtime"
 
 import "strconv"
 
-// HomeView is the personal dashboard model. Repos populates the sidebar; the
-// heatmap is rendered with real month labels but zero contribution data (no
-// per-day source yet); the activity feed is an empty state for now.
+// HomeView is the personal dashboard model. Repos populates the sidebar.
+//
+// Heatmap and activity feed are deferred: they require a lore-server activity
+// RPC that exposes per-revision author + timestamp (and ideally a cross-repo
+// stream). modelv1.RevisionItem carries neither; ListRevisions is per-branch
+// and has no author/timestamp fields. Until that RPC exists the widgets render
+// as explicit "coming soon" placeholders rather than misleading empty/zero state.
 type HomeView struct {
 	Username  string
 	RepoCount int
 	Repos     []HomeRepoView
-	Months    []string // 12 abbreviated month labels, oldest -> newest
-	HeatCells []int    // contribution level 0..4 per day cell (column-major)
-	HeatTotal int
 }
 
 // HomeRepoView is one repository in the dashboard sidebar list.
@@ -58,154 +59,74 @@ func HomePage(v HomeView) templ.Component {
 		var templ_7745c5c3_Var2 string
 		templ_7745c5c3_Var2, templ_7745c5c3_Err = templ.JoinStringErrs(v.Username)
 		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 29, Col: 43}
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 30, Col: 43}
 		}
 		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var2))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span> <span class=\"msi home-userchev\">expand_more</span></div><div class=\"home-grid\"><div class=\"home-main\"><div class=\"card heat-card\"><div class=\"heat-scroll\"><div class=\"heat-months\">")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 2, "</span> <span class=\"msi home-userchev\">expand_more</span></div><div class=\"home-grid\"><div class=\"home-main\"><div class=\"card heat-card\"><div class=\"home-feed-empty\"><span class=\"msi\">calendar_month</span><p>Contribution graph — coming soon</p><span class=\"home-coming-soon-detail\">Requires a lore-server activity RPC with per-revision author and timestamp.</span></div></div><div class=\"home-feed-empty\"><span class=\"msi\">history</span><p>Activity timeline — coming soon</p><span class=\"home-coming-soon-detail\">Requires a cross-repo activity stream from lore-server.</span></div></div><aside class=\"home-aside\"><div class=\"home-aside-tabs\"><span class=\"active\">Repositories <span class=\"countchip\">")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, m := range v.Months {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "<span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var3 string
-			templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(m)
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 38, Col: 17}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "</span>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
+		var templ_7745c5c3_Var3 string
+		templ_7745c5c3_Var3, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(v.RepoCount))
+		if templ_7745c5c3_Err != nil {
+			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 50, Col: 90}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "</div><div class=\"heat-body\"><div class=\"heat-days\"><span></span><span>Mon</span><span></span><span>Wed</span><span></span><span>Fri</span><span></span></div><div class=\"heat-grid\">")
+		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var3))
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
-		for _, lvl := range v.HeatCells {
-			var templ_7745c5c3_Var4 = []any{"heat-cell", heatLevel(lvl)}
-			templ_7745c5c3_Err = templ.RenderCSSItems(ctx, templ_7745c5c3_Buffer, templ_7745c5c3_Var4...)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<div class=\"")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			var templ_7745c5c3_Var5 string
-			templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.ResolveAttributeValue(templ.CSSClasses(templ_7745c5c3_Var4).String())
-			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 1, Col: 0}
-			}
-			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var5)
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "\"></div>")
-			if templ_7745c5c3_Err != nil {
-				return templ_7745c5c3_Err
-			}
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></div><div class=\"heat-foot\"><span>")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var6 string
-		templ_7745c5c3_Var6, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(v.HeatTotal))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 50, Col: 40}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var6))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 9, " contributions in the last 12 months</span> <span class=\"heat-legend\">Less <span class=\"heat-cell l0\"></span> <span class=\"heat-cell l1\"></span> <span class=\"heat-cell l2\"></span> <span class=\"heat-cell l3\"></span> <span class=\"heat-cell l4\"></span> More</span></div></div></div><div class=\"home-feed-empty\"><span class=\"msi\">history</span><p>No recent activity yet.</p></div></div><aside class=\"home-aside\"><div class=\"home-aside-tabs\"><span class=\"active\">Repositories <span class=\"countchip\">")
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		var templ_7745c5c3_Var7 string
-		templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(strconv.Itoa(v.RepoCount))
-		if templ_7745c5c3_Err != nil {
-			return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 70, Col: 90}
-		}
-		_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
-		if templ_7745c5c3_Err != nil {
-			return templ_7745c5c3_Err
-		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 10, "</span></span> <span>Organizations <span class=\"countchip\">0</span></span></div><div class=\"card\"><div class=\"aside-search\"><span class=\"msi s\">search</span> <input type=\"text\" placeholder=\"Search repos…\" aria-label=\"Search repositories\"> <button type=\"button\" class=\"aside-tune\" title=\"Filter\"><span class=\"msi\">tune</span></button></div><div class=\"aside-filters\"><span class=\"active\">All</span> <span>Sources</span> <span>Forks</span> <span>Mirrors</span></div>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 3, "</span></span> <span>Organizations <span class=\"countchip\">0</span></span></div><div class=\"card\"><div class=\"aside-search\"><span class=\"msi s\">search</span> <input type=\"text\" placeholder=\"Search repos…\" aria-label=\"Search repositories\"> <button type=\"button\" class=\"aside-tune\" title=\"Filter\"><span class=\"msi\">tune</span></button></div><div class=\"aside-filters\"><span class=\"active\">All</span> <span>Sources</span> <span>Forks</span> <span>Mirrors</span></div>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		if len(v.Repos) == 0 {
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<div class=\"lt-empty\">You have no repositories yet — create one with the lore CLI (<code>lore repository create lore://&lt;host&gt;/&lt;name&gt;</code>) or ask an admin for access.</div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<div class=\"lt-empty\">You have no repositories yet — create one with the lore CLI (<code>lore repository create lore://&lt;host&gt;/&lt;name&gt;</code>) or ask an admin for access.</div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 		} else {
 			for _, r := range v.Repos {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "<a class=\"aside-repo\" href=\"")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 5, "<a class=\"aside-repo\" href=\"")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var8 templ.SafeURL
-				templ_7745c5c3_Var8, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/-/" + r.Name))
+				var templ_7745c5c3_Var4 templ.SafeURL
+				templ_7745c5c3_Var4, templ_7745c5c3_Err = templ.JoinURLErrs(templ.SafeURL("/-/" + r.Name))
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 93, Col: 65}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 73, Col: 65}
 				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var8))
-				if templ_7745c5c3_Err != nil {
-					return templ_7745c5c3_Err
-				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 13, "\"><span class=\"msi\">lock</span>")
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var4))
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				var templ_7745c5c3_Var9 string
-				templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
-				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 93, Col: 105}
-				}
-				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "\"><span class=\"msi\">lock</span>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "</a>")
+				var templ_7745c5c3_Var5 string
+				templ_7745c5c3_Var5, templ_7745c5c3_Err = templ.JoinStringErrs(r.Name)
+				if templ_7745c5c3_Err != nil {
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `web/templates/home.templ`, Line: 73, Col: 105}
+				}
+				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var5))
+				if templ_7745c5c3_Err != nil {
+					return templ_7745c5c3_Err
+				}
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 7, "</a>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 			}
 		}
-		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 15, "</div></aside></div></section>")
+		templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 8, "</div></aside></div></section>")
 		if templ_7745c5c3_Err != nil {
 			return templ_7745c5c3_Err
 		}
 		return nil
 	})
-}
-
-// heatLevel maps a contribution level 0..4 to its cell class.
-func heatLevel(lvl int) string {
-	switch {
-	case lvl <= 0:
-		return "l0"
-	case lvl == 1:
-		return "l1"
-	case lvl == 2:
-		return "l2"
-	case lvl == 3:
-		return "l3"
-	default:
-		return "l4"
-	}
 }
 
 var _ = templruntime.GeneratedTemplate

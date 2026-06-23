@@ -65,3 +65,11 @@ func IdentityFromContext(ctx context.Context) (Identity, bool) {
 	identity, ok := ctx.Value(identityKey{}).(Identity)
 	return identity, ok
 }
+
+// ContextWithIdentity returns a child context carrying id under the unexported
+// identity key, so callers outside this package (e.g. handler tests) can inject
+// an Identity that IdentityFromContext will then resolve — without exposing the
+// key itself.
+func ContextWithIdentity(ctx context.Context, id Identity) context.Context {
+	return context.WithValue(ctx, identityKey{}, id)
+}

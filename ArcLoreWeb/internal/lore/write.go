@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	gen "arcloreweb/gen"
 	repositoryv1 "arcloreweb/gen/lore/repository/v1"
 )
 
@@ -127,6 +128,23 @@ func (c *Client) RepositoryDelete(ctx context.Context, token string, repoID [16]
 	defer cancel()
 	if _, err := c.repos.RepositoryDelete(callCtx, req); err != nil {
 		return mapRepoDeleteError(err)
+	}
+	return nil
+}
+
+// Unlock releases the given lock resources on the lore-server. Each resource is
+// the EXACT Resource (branch/hash/description) the caller read off the lock it
+// wants to release — the server matches on all three, so a partial/mismatched
+// Resource silently no-ops. The call carries the caller's authz Bearer plus the
+// repoID -bin headers via WithLoreCall (the same auth stamping RepositoryCreate
+// uses); in auth-disabled mode token is empty and the call goes Bearer-less,
+// which the server enforces.
+func (c *Client) Unlock(ctx context.Context, token string, repoID [16]byte, resources []*gen.Resource) error {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	ctx = WithLoreCall(ctx, token, repoID)
+	if _, err := c.locks.Unlock(ctx, &gen.UnlockRequest{Resources: resources}); err != nil {
+		return fmt.Errorf("lore: lock Unlock: %w", err)
 	}
 	return nil
 }

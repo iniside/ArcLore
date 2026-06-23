@@ -23,12 +23,12 @@ import (
 // identityToken(r) from the request context.
 type AdminHandler struct {
 	Mgmt     *mgmt.Client
-	Lore     *lore.Client
+	Lore     LoreClient
 	Sessions *scs.SessionManager
 }
 
 // NewAdmin constructs an AdminHandler.
-func NewAdmin(mgmtClient *mgmt.Client, loreClient *lore.Client, sessions *scs.SessionManager) *AdminHandler {
+func NewAdmin(mgmtClient *mgmt.Client, loreClient LoreClient, sessions *scs.SessionManager) *AdminHandler {
 	return &AdminHandler{Mgmt: mgmtClient, Lore: loreClient, Sessions: sessions}
 }
 
@@ -111,10 +111,10 @@ func (h *AdminHandler) AdminCreateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		apiErr := &mgmt.APIError{}
 		if errors.As(err, &apiErr) {
-			http.Redirect(w, r, "/admin/users?err="+http.StatusText(apiErr.Status)+": "+apiErr.Message, http.StatusSeeOther)
+			http.Redirect(w, r, "/admin/users?err="+url.QueryEscape(http.StatusText(apiErr.Status)+": "+apiErr.Message), http.StatusSeeOther)
 			return
 		}
-		http.Redirect(w, r, "/admin/users?err="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/users?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
@@ -130,10 +130,10 @@ func (h *AdminHandler) AdminDeleteUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		apiErr := &mgmt.APIError{}
 		if errors.As(err, &apiErr) {
-			http.Redirect(w, r, "/admin/users?err="+apiErr.Message, http.StatusSeeOther)
+			http.Redirect(w, r, "/admin/users?err="+url.QueryEscape(apiErr.Message), http.StatusSeeOther)
 			return
 		}
-		http.Redirect(w, r, "/admin/users?err="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/users?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
@@ -151,7 +151,7 @@ func (h *AdminHandler) AdminSetPassword(w http.ResponseWriter, r *http.Request) 
 	token := adminToken(r)
 
 	if err := h.Mgmt.SetPassword(r.Context(), token, username, password); err != nil {
-		http.Redirect(w, r, "/admin/users?err="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/users?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
@@ -173,10 +173,10 @@ func (h *AdminHandler) AdminSetAdmin(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		apiErr := &mgmt.APIError{}
 		if errors.As(err, &apiErr) {
-			http.Redirect(w, r, "/admin/users?err="+apiErr.Message, http.StatusSeeOther)
+			http.Redirect(w, r, "/admin/users?err="+url.QueryEscape(apiErr.Message), http.StatusSeeOther)
 			return
 		}
-		http.Redirect(w, r, "/admin/users?err="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/users?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/admin/users", http.StatusSeeOther)
@@ -248,7 +248,7 @@ func (h *AdminHandler) AdminCreateRepo(w http.ResponseWriter, r *http.Request) {
 	// lore-server's RepositoryService authn accepts and forwards to RebacApi.
 	token, err := h.Lore.ResourceAuthzToken(r.Context(), identityToken(r), lore.WildcardResource)
 	if err != nil {
-		http.Redirect(w, r, "/admin/repos?err="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/repos?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 
@@ -258,7 +258,7 @@ func (h *AdminHandler) AdminCreateRepo(w http.ResponseWriter, r *http.Request) {
 		Creator:     identity.Sub,
 	})
 	if err != nil {
-		http.Redirect(w, r, "/admin/repos?err="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/repos?err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
 	http.Redirect(w, r, "/admin/repos", http.StatusSeeOther)
@@ -391,10 +391,10 @@ func (h *AdminHandler) AdminAddGrant(w http.ResponseWriter, r *http.Request) {
 	token := adminToken(r)
 
 	if err := h.Mgmt.AddGrant(r.Context(), token, username, resourceID, permission); err != nil {
-		http.Redirect(w, r, "/admin/grants?user="+username+"&err="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/grants?user="+url.QueryEscape(username)+"&err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/admin/grants?user="+username, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/grants?user="+url.QueryEscape(username), http.StatusSeeOther)
 }
 
 // AdminRemoveGrant handles POST /admin/grants/delete — revokes a grant then
@@ -410,10 +410,10 @@ func (h *AdminHandler) AdminRemoveGrant(w http.ResponseWriter, r *http.Request) 
 	token := adminToken(r)
 
 	if err := h.Mgmt.RemoveGrant(r.Context(), token, username, resourceID, permission); err != nil {
-		http.Redirect(w, r, "/admin/grants?user="+username+"&err="+err.Error(), http.StatusSeeOther)
+		http.Redirect(w, r, "/admin/grants?user="+url.QueryEscape(username)+"&err="+url.QueryEscape(err.Error()), http.StatusSeeOther)
 		return
 	}
-	http.Redirect(w, r, "/admin/grants?user="+username, http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/grants?user="+url.QueryEscape(username), http.StatusSeeOther)
 }
 
 // baseCtx returns a repo-less lore call context for AdminHandler. It mirrors

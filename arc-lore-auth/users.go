@@ -78,6 +78,9 @@ func validatePassword(pw string) error {
 		}
 		return errors.New("password must be at least 12 characters")
 	}
+	if len(pw) > 1024 {
+		return errors.New("password must not exceed 1024 characters")
+	}
 	return nil
 }
 

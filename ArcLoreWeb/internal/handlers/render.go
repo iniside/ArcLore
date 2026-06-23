@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -34,6 +35,7 @@ func renderPageStatus(w http.ResponseWriter, r *http.Request, statusCode int, ti
 	if r.Header.Get("HX-Request") == "true" {
 		// Partial swap: send only the body fragment.
 		if err := body.Render(r.Context(), w); err != nil {
+			log.Printf("render: htmx partial render: %v", err)
 			return
 		}
 		return
@@ -51,6 +53,7 @@ func renderPageStatus(w http.ResponseWriter, r *http.Request, statusCode int, ti
 	page := templates.Layout(title, body, identity.Sub, identity.IsAdmin, section)
 	if err := page.Render(r.Context(), w); err != nil {
 		// Headers are already committed; nothing useful to surface to the client.
+		log.Printf("render: layout render: %v", err)
 		return
 	}
 }

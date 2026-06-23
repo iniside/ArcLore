@@ -47,9 +47,10 @@ func drainRevisionTree(
 	}
 }
 
-// revisionDiffEntry is one body element of a RevisionDiff stream: exactly one
-// of Change / Conflict is non-nil.
-type revisionDiffEntry struct {
+// RevisionDiffEntry is one body element of a RevisionDiff stream: exactly one
+// of Change / Conflict is non-nil. Exported so the handlers-package LoreClient
+// interface can name RevisionDiff's return type.
+type RevisionDiffEntry struct {
 	Change   *thin_clientv1.DiffChange
 	Conflict *thin_clientv1.DiffConflict
 }
@@ -58,9 +59,9 @@ type revisionDiffEntry struct {
 // the Header; subsequent messages are DiffChange or DiffConflict items.
 func drainRevisionDiff(
 	stream grpc.ServerStreamingClient[thin_clientv1.RevisionDiffResponse],
-) (*thin_clientv1.RevisionDiffHeader, []revisionDiffEntry, error) {
+) (*thin_clientv1.RevisionDiffHeader, []RevisionDiffEntry, error) {
 	var header *thin_clientv1.RevisionDiffHeader
-	entries := make([]revisionDiffEntry, 0)
+	entries := make([]RevisionDiffEntry, 0)
 	first := true
 
 	for {
@@ -79,9 +80,9 @@ func drainRevisionDiff(
 			}
 			header = payload.Header
 		case *thin_clientv1.RevisionDiffResponse_Change:
-			entries = append(entries, revisionDiffEntry{Change: payload.Change})
+			entries = append(entries, RevisionDiffEntry{Change: payload.Change})
 		case *thin_clientv1.RevisionDiffResponse_Conflict:
-			entries = append(entries, revisionDiffEntry{Conflict: payload.Conflict})
+			entries = append(entries, RevisionDiffEntry{Conflict: payload.Conflict})
 		default:
 			return header, entries, fmt.Errorf("lore: RevisionDiff unexpected payload %T", msg.Payload)
 		}

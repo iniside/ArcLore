@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -106,7 +107,7 @@ func Dial(grpcAddr, httpBaseURL string, timeout time.Duration) (*Client, error) 
 		thin:         thin_clientv1.NewThinClientServiceClient(conn),
 		locks:        gen.NewLockServiceClient(conn),
 		environments: environmentv1.NewEnvironmentServiceClient(conn),
-		httpClient:   &http.Client{},
+		httpClient:   &http.Client{Timeout: timeout},
 		httpBaseURL:  strings.TrimRight(httpBaseURL, "/"),
 		timeout:      timeout,
 		grpcHost:     target,
@@ -135,8 +136,8 @@ func splitScheme(addr string) (target string, useTLS bool) {
 }
 
 // Close tears down the underlying gRPC connection plus the auth conn if it was
-// lazily dialed. The main-conn error is returned; an auth-conn close error is
-// only surfaced when the main conn closed cleanly.
+// lazily dialed. Both close errors are surfaced via errors.Join so neither is
+// dropped when the other also fails.
 func (c *Client) Close() error {
 	mainErr := c.conn.Close()
 
@@ -147,12 +148,17 @@ func (c *Client) Close() error {
 	c.authMu.Unlock()
 
 	if authConn != nil {
-		if authErr := authConn.Close(); authErr != nil && mainErr == nil {
-			return authErr
-		}
+		return errors.Join(mainErr, authConn.Close())
 	}
 	return mainErr
 }
+
+// maxRepositoryRows bounds the ListRepositories drain so a rogue/huge server
+// cannot OOM the client. Server page size is server-controlled.
+const maxRepositoryRows = 500
+
+// maxBranchRows bounds the ListBranches drain for the same reason.
+const maxBranchRows = 1000
 
 // ListRepositories drains the RepositoryList server-stream into a slice.
 func (c *Client) ListRepositories(ctx context.Context) ([]*modelv1.Repository, error) {
@@ -175,6 +181,10 @@ func (c *Client) ListRepositories(ctx context.Context) ([]*modelv1.Repository, e
 		}
 		if msg.Repository != nil {
 			out = append(out, msg.Repository)
+			if len(out) >= maxRepositoryRows {
+				log.Printf("lore: ListRepositories: capped at %d (server returned more)", maxRepositoryRows)
+				return out, nil
+			}
 		}
 	}
 }
@@ -231,6 +241,10 @@ func (c *Client) ListBranches(ctx context.Context) ([]*modelv1.Branch, error) {
 		}
 		if msg.Branch != nil {
 			out = append(out, msg.Branch)
+			if len(out) >= maxBranchRows {
+				log.Printf("lore: ListBranches: capped at %d (server returned more)", maxBranchRows)
+				return out, nil
+			}
 		}
 	}
 }
@@ -339,7 +353,7 @@ func (c *Client) RevisionTree(
 func (c *Client) RevisionDiff(
 	ctx context.Context,
 	signatureFrom, signatureTo []byte,
-) (*thin_clientv1.RevisionDiffHeader, []revisionDiffEntry, error) {
+) (*thin_clientv1.RevisionDiffHeader, []RevisionDiffEntry, error) {
 	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 

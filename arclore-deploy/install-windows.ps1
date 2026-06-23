@@ -22,7 +22,7 @@
 
 .PARAMETER Server
     Hostname/IP of the auth server to fetch the cert from (its :8443 TLS handshake).
-    MUST match the host in lore-server's auth_url. Default: 159.69.137.186.
+    MUST match the host in lore-server's auth_url. Required unless -CertPath is given.
 
 .PARAMETER Port
     gRPC TLS port to fetch from. Default: 8443.
@@ -35,12 +35,12 @@
     else by subject CN containing 'arc-lore-auth').
 
 .EXAMPLE
-    .\install-windows.ps1
-    # fetch from 159.69.137.186:8443 and install
+    .\install-windows.ps1 -Server <your-host>
+    # fetch from the arc-lore-auth host and install
 
 .EXAMPLE
     .\install-windows.ps1 -Server lore.lan
-    # fetch from a different host
+    # fetch from a named host
 
 .EXAMPLE
     .\install-windows.ps1 -CertPath .\arc-lore-auth-tls.crt
@@ -51,7 +51,7 @@
 #>
 [CmdletBinding()]
 param(
-    [string]$Server = '159.69.137.186',
+    [string]$Server = '',
     [int]$Port = 8443,
     [string]$CertPath,
     [switch]$Uninstall
@@ -127,6 +127,12 @@ if ($Uninstall) {
     }
     Write-Ok "Removed $($matches.Count) certificate(s)."
     exit 0
+}
+
+# -- Validate required params ---------------------------------------------------
+if (-not $CertPath -and -not $Server) {
+    Write-Err "-Server is required (the IP/hostname of your arc-lore-auth host) unless -CertPath is given."
+    exit 1
 }
 
 # -- Obtain the cert (fetch from :8443 TLS, or a local -CertPath) ---------------

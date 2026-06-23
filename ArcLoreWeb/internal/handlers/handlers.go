@@ -24,7 +24,7 @@ var zeroRepo [16]byte
 // Handler bundles the dependencies the browse handlers need: the typed Lore
 // client and the session manager (for identity lookup).
 type Handler struct {
-	Lore     *lore.Client
+	Lore     LoreClient
 	Sessions *scs.SessionManager
 
 	// LoreHost is the bare "host:port" of the lore gRPC server (scheme stripped),
@@ -34,7 +34,7 @@ type Handler struct {
 }
 
 // New constructs a Handler.
-func New(loreClient *lore.Client, sessions *scs.SessionManager) *Handler {
+func New(loreClient LoreClient, sessions *scs.SessionManager) *Handler {
 	return &Handler{Lore: loreClient, Sessions: sessions, LoreHost: loreClient.GRPCHost()}
 }
 
